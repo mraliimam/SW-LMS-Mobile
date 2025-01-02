@@ -1,0 +1,18 @@
+0 verbose cli C:\Program Files\nodejs\node.exe C:\Users\saads\AppData\Roaming\npm\node_modules\npm\bin\npm-cli.js
+1 info using npm@10.9.0
+2 info using node@v20.17.0
+3 silly config load:file:C:\Users\saads\AppData\Roaming\npm\node_modules\npm\npmrc
+4 silly config load:file:L:\ReactNativecheck\WORK\SWLMS\.npmrc
+5 silly config load:file:C:\Users\saads\.npmrc
+6 silly config load:file:C:\Users\saads\AppData\Roaming\npm\etc\npmrc
+7 verbose title npm exec react-native run-android
+8 verbose argv "exec" "--" "react-native" "run-android"
+9 verbose logfile logs-max:10 dir:L:\ReactNativecheck\WORK\SWLMS\-clear\_logs\2024-12-06T11_52_42_341Z-
+10 verbose logfile L:\ReactNativecheck\WORK\SWLMS\-clear\_logs\2024-12-06T11_52_42_341Z-debug-0.log
+11 silly logfile done cleaning log files
+12 verbose cwd L:\ReactNativecheck\WORK\SWLMS
+13 verbose os Windows_NT 10.0.19045
+14 verbose node v20.17.0
+15 verbose npm  v10.9.0
+16 verbose exit 0
+17 info ok

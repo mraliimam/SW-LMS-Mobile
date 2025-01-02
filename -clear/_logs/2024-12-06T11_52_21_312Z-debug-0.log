@@ -1,0 +1,13 @@
+0 verbose cli C:\Program Files\nodejs\node.exe C:\Users\saads\AppData\Roaming\npm\node_modules\npm\bin\npm-cli.js
+1 info using npm@10.9.0
+2 info using node@v20.17.0
+3 silly config load:file:C:\Users\saads\AppData\Roaming\npm\node_modules\npm\npmrc
+4 silly config load:file:L:\ReactNativecheck\WORK\SWLMS\.npmrc
+5 silly config load:file:C:\Users\saads\.npmrc
+6 silly config load:file:C:\Users\saads\AppData\Roaming\npm\etc\npmrc
+7 verbose title npm run start
+8 verbose argv "run" "start" "--cache" "-clear"
+9 verbose logfile logs-max:10 dir:L:\ReactNativecheck\WORK\SWLMS\-clear\_logs\2024-12-06T11_52_21_312Z-
+10 verbose logfile L:\ReactNativecheck\WORK\SWLMS\-clear\_logs\2024-12-06T11_52_21_312Z-debug-0.log
+11 silly logfile done cleaning log files
+12 http fetch GET 200 https://registry.npmjs.org/npm 1932ms

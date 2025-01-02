@@ -1,55 +1,76 @@
-import React, { useState, useRef } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  StyleSheet, 
+import React, { useState, useRef,useEffect } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
   StatusBar,
   ImageBackground,
   Dimensions,
   ActivityIndicator,
   KeyboardAvoidingView,
   ScrollView,
-  Platform
+  Platform,
+  Keyboard,
+  EmitterSubscription,
 } from 'react-native';
 import LOGO from 'react-native-vector-icons/FontAwesome';
 import EYE from 'react-native-vector-icons/Entypo';
 import { Popup } from '../components/UI/Popup';
-
+import {login} from '../api/Signup';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 const { width, height } = Dimensions.get('window');
 
 export default function SignInScreen({ navigation }) {
-  const [phoneNumber, setPhoneNumber] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [popupVisible, setPopupVisible] = useState(false);
   const [popupMessage, setPopupMessage] = useState('');
-  const passwordInputRef = useRef();
-
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  const passwordInputRef = useRef(null);
+
+  useEffect(() => {
+    const keyboardWillShowListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => setKeyboardHeight(e.endCoordinates.height)
+    );
+    const keyboardWillHideListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardHeight(0)
+    );
+
+    return () => {
+      keyboardWillShowListener.remove();
+      keyboardWillHideListener.remove();
+    };
+  }, []);
+
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
   };
 
-  const HandleSignup = async () => {
+  const handleSignIn = async () => {
     if (isLoading) return; 
-    if (phoneNumber === '' || password === '') {
+    if (username === '' || password === '') {
       showPopup('Please Fill All Fields');
-      return;
-    }
-    if (phoneNumber.length <= 2) {
-      showPopup('Please Enter Correct Phone Number');
       return;
     }
     setIsLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      if (phoneNumber === '1111111111' && password === 'admin') {
-        navigation.navigate('Home');
+      const response = await login(username, password);
+      console.log('the response:>>', JSON.stringify(response))
+      if(response.success || response.Message) {
+        await AsyncStorage.setItem('username', username);
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Home' }],
+        });
       } else {
-        showPopup('Incorrect Phone Number or Password');
+        showPopup('Incorrect User Name or Password');
       }
     } catch (error) {
       showPopup('An error occurred. Please try again.');
@@ -62,27 +83,26 @@ export default function SignInScreen({ navigation }) {
     setPopupMessage(message);
     setPopupVisible(true);
   }
-
-  const handlePhoneNumberChange = (text) => {
-    const formattedNumber = text.replace(/[^0-9]/g, '').slice(0, 10);
-    setPhoneNumber(formattedNumber);
-  };
-
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : -200}
     >
-      <ImageBackground 
+    <ImageBackground 
         source={require('../assets/background.jpg')} 
         style={styles.backgroundImage}
       >
-        <ScrollView contentContainerStyle={styles.scrollViewContent}>
+        <ScrollView 
+          contentContainerStyle={[
+            styles.scrollViewContent,
+            { paddingBottom: keyboardHeight }
+          ]}
+          keyboardShouldPersistTaps="handled"
+        >
           <StatusBar backgroundColor="transparent" translucent />
           <View style={styles.header}>
             <View style={styles.iconContainer}>
-              <LOGO name="graduation-cap" size={50} color="#FF4B75" />
+            <LOGO name="graduation-cap" size={50} color="#FF4B75" />
             </View>
             <Text style={styles.brandText}>SW-LMS</Text>
           </View>
@@ -92,89 +112,84 @@ export default function SignInScreen({ navigation }) {
           </View>
 
           <View style={styles.card}>
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Phone Number</Text>
-                <View style={styles.phoneInputContainer}>
-                  <Text style={styles.countryCode}>+91</Text>
-                  <TextInput
-                    style={styles.phoneInput}
-                    placeholder="1122112211"
-                    keyboardType="phone-pad"
-                    value={phoneNumber}
-                    onChangeText={handlePhoneNumberChange}
-                    placeholderTextColor={'#d6d6d6'}
-                    returnKeyType="next"
-                    onSubmitEditing={() => passwordInputRef.current.focus()}
-                  />
-                </View>
-              </View>
-          
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Password</Text>
-                <View style={styles.passwordContainer}>
-                  <TextInput
-                    ref={passwordInputRef}
-                    style={styles.passwordInput}
-                    secureTextEntry={!showPassword}
-                    value={password}
-                    onChangeText={setPassword}
-                    placeholder="••••••••••"
-                    placeholderTextColor={'#d6d6d6'}
-                  />
-                  <TouchableOpacity onPress={togglePasswordVisibility} style={styles.eyeButton}>
-                    <EYE 
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>User Name</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Username"
+                value={username}
+                onChangeText={setUsername}
+                placeholderTextColor={'#d6d6d6'}
+                returnKeyType="next"
+                onSubmitEditing={() => passwordInputRef.current?.focus()}
+              />
+            </View>
+        
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Password</Text>
+              <View style={styles.passwordContainer}>
+                <TextInput
+                  ref={passwordInputRef}
+                  style={styles.passwordInput}
+                  secureTextEntry={!showPassword}
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="••••••••••"
+                  placeholderTextColor={'#d6d6d6'}
+                />
+                <TouchableOpacity onPress={togglePasswordVisibility} style={styles.eyeButton}>
+                <EYE 
                       style={{ opacity: 0.4 }}
                       name={showPassword ? "eye-with-line" : "eye"}
                       size={20} 
                       color="#666666" 
                     />
-                  </TouchableOpacity>
-                </View>
-          </View>
+                </TouchableOpacity>
+              </View>
+            </View>
 
-          <TouchableOpacity 
-            style={[styles.button, isLoading && styles.buttonDisabled]} 
-            onPress={HandleSignup}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.buttonText}>Sign In</Text>
-            )}
-          </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.button, isLoading && styles.buttonDisabled]} 
+              onPress={()=>handleSignIn()}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.buttonText}>Sign In</Text>
+              )}
+            </TouchableOpacity>
           
-          <TouchableOpacity style={styles.forgotPassword}>
-            <Text style={styles.forgotPasswordText}>Forgot Password</Text>
-          </TouchableOpacity>
+            <TouchableOpacity style={styles.forgotPassword}>
+              <Text style={styles.forgotPasswordText}>Forgot Password</Text>
+            </TouchableOpacity>
           </View>
-
-            <Popup
+          <Popup
               visible={popupVisible}
               onClose={() => setPopupVisible(false)}
               title="Message"
             >
               <Text>{popupMessage}</Text>
             </Popup>
-            </ScrollView>
-            </ImageBackground>
-            </KeyboardAvoidingView>
-            );
-            }
+        </ScrollView>
+      </ImageBackground>
+    </KeyboardAvoidingView>
+  );
+}
 
-            const styles = StyleSheet.create({
-              container: {
-                flex: 1,
-              },
-              backgroundImage: {
-                width: width,
-                height: height,
-                flex: 1,
-              },
-              scrollViewContent: {
-                flexGrow: 1,
-                justifyContent: 'center',
-              },
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  backgroundImage: {
+    width: width,
+    height: height,
+    flex: 1,
+  },
+  scrollViewContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+  },
   header: {
     alignItems: 'center',
     paddingVertical: 40,
@@ -207,7 +222,7 @@ export default function SignInScreen({ navigation }) {
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
-    padding: 24,
+    padding: 29,
     flex: 1,
   },
   inputContainer: {
@@ -218,44 +233,34 @@ export default function SignInScreen({ navigation }) {
     color: '#666666',
     marginBottom: 8,
   },
-  phoneInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    color: 'black',
-    padding: 2,
-  },
-  countryCode: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: 'black',
-    marginRight: 10,
-  },
-  phoneInput: {
-    flex: 1,
-    fontSize: 28,
-    fontWeight: '900',
+  input: {
+    fontSize: 18,
     color: '#1A1A1A',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+    paddingVertical: 8,
   },
   passwordContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderColor: '#E0E0E0',
-    padding: 2,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
   },
   passwordInput: {
     flex: 1,
-    fontSize: 28,
+    fontSize: 18,
     color: '#1A1A1A',
+    paddingVertical: 8,
   },
   eyeButton: {
     padding: 10,
   },
   button: {
     backgroundColor: '#FF4B75',
-    borderRadius: 22,
+    borderRadius: 25,
     padding: 16,
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: 20,
   },
   buttonDisabled: {
     backgroundColor: '#FFB3C0',
