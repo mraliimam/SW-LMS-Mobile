@@ -1,19 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   SafeAreaView,
   StatusBar,
   FlatList,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getStudents, addAttendance } from '../api/Signup';
+import { Button } from 'react-native-paper';
+import { getStudents, addAttendance, getAttendance } from '../api/Signup';
 import { Popup } from '../components/UI/Popup';
 import PencilLoader from '../components/UI/PencilLoader';
-export default function Attendance() {
+import StudentRow from './StudentRow';
+
+const Attendance = () => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [selectedClass, setSelectedClass] = useState('');
   const [students, setStudents] = useState([]);
   const [attendance, setAttendance] = useState({});
@@ -21,53 +25,91 @@ export default function Attendance() {
   const [popupVisible, setPopupVisible] = useState(false);
   const [Class_id, setClass_id] = useState('');
   const [popupMessage, setPopupMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(true); // Add loading state
-  const [classes,setclasses] = useState([]); 
-  const statuses = ['P', 'A', 'H', 'L', 'E'];
+  const [isLoading, setIsLoading] = useState(true);
+  const [classes, setClasses] = useState([]);
+  const [attendanceTaken, setAttendanceTaken] = useState(false);
 
-  useEffect(() => {
-    fetchStudents();
-  }, []);
+  const statuses = ['P', 'A', 'X', 'L/E'];
 
-  const showPopup = (message) => {
+  const showPopup = useCallback((message) => {
     setPopupMessage(message);
     setPopupVisible(true);
-  }
+  }, []);
 
-  const fetchStudents = async () => {
-    setIsLoading(true); // Start loading
+useEffect(() => {
+  const Getusername = async()=>{
+
+    const storedUsername = await AsyncStorage.getItem('username');
+    setUsername(storedUsername);
+    fetchStudents();
+  }
+  Getusername()
+},[])
+  const fetchStudents = useCallback(async () => {
+    setIsLoading(true);
     try {
       const storedUsername = await AsyncStorage.getItem('username');
       setUsername(storedUsername);
-      // console.log(storedUsername);
       const response = await getStudents(storedUsername);
       if (response && response.Records) {
         setStudents(response.Records);
-        setClass_id(response.Records[0].current_class_id)
-        const initialAttendance = response.Records.reduce((acc, student) => {
-          acc[student.student_id] = '';
-          return acc;
-        }, {});
-        setAttendance(initialAttendance);
-        setclasses(response.Records[0].current_class)
+        if (response.Records.length > 0) {
+          setClass_id(response.Records[0].current_class_id);
+          setClasses([response.Records[0].current_class]);
+          setSelectedClass(response.Records[0].current_class);
+        }
+        // console.log('1000')
+        await fetchAttendance();
       }
     } catch (error) {
       console.error('Error fetching students:', error);
+      setError('Failed to fetch students. Please try again.');
     } finally {
-      setIsLoading(false); // Stop loading
+      setIsLoading(false);
     }
-  };
+  }, []);
 
-  const handleAttendanceChange = (studentId, status) => {
+  const fetchAttendance = useCallback(async () => {
+    // console.log('here is something:>')
+    try {
+      const currentDate = new Date().toISOString().split('T')[0];
+      const storedUsername = await AsyncStorage.getItem('username');
+      const body = {
+        username: storedUsername,
+        dateFor: currentDate
+      };
+      // console.log('what is this <><>')
+      const response = await getAttendance(body);
+      // console.log('what is that <><>',response)
+      if (response && response.Classes && response.Classes.length > 0) {
+        const classData = response.Classes[0];
+        
+        // console.log('loli')
+        const attendanceData = classData.attendance.reduce((acc, item) => {
+          acc[item.student_id] = item.status;
+          return acc;
+        }, {});
+        setAttendance(attendanceData);
+        setAttendanceTaken(true);
+      } else {
+        setAttendanceTaken(false);
+      }
+    } catch (error) {
+      console.error('Error fetching attendance:', error);
+      setError('Failed to fetch attendance. Please try again.');
+    }
+  }, [username]);
+
+  const handleAttendanceChange = useCallback((studentId, status) => {
     setAttendance(prev => ({
       ...prev,
-      [studentId]: status,
+      [studentId]: status === 'L/E' ? 'E' : status,
     }));
-  };
+  }, []);
 
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     try {
-      const currentDate = new Date().toISOString().split('T')[0]; // Get current date in YYYY-MM-DD format
+      const currentDate = new Date().toISOString().split('T')[0];
       const attendanceData = Object.entries(attendance).map(([studentId, status]) => ({
         student_id: parseInt(studentId),
         status,
@@ -78,107 +120,115 @@ export default function Attendance() {
         class_id: Class_id, 
         attendance: attendanceData,
       };
-      // console.log('what is this:>',body.class_id)
       const response = await addAttendance(body);
       if (response.Message) {
         showPopup(response.Message);
+        setAttendanceTaken(true);
       }
     } catch (error) {
       console.error('Error submitting attendance:', error);
+      setError('Failed to submit attendance. Please try again.');
     }
-  };
+  }, [attendance, username, Class_id, showPopup]);
 
-  const renderItem = ({ item }) => (
-    <View style={styles.row}>
-      <Text style={[styles.cell, styles.nameCell]}>{item.name}</Text>
-      {statuses.map(status => (
-        <TouchableOpacity
-          key={status}
-          style={styles.radioContainer}
-          onPress={() => handleAttendanceChange(item.student_id, status)}>
-          <View
-            style={[
-              styles.radio,
-              attendance[item.student_id] === status && styles.radioSelected,
-            ]}
-          />
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
+  const renderItem = useCallback(({ item }) => (
+    <StudentRow
+      item={item}
+      attendance={attendance}
+      statuses={statuses}
+      onAttendanceChange={handleAttendanceChange}
+      attendanceTaken={attendanceTaken}
+    />
+  ), [attendance, handleAttendanceChange, attendanceTaken]);
+
+  const keyExtractor = useCallback((item) => item.student_id.toString(), []);
+
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>{error}</Text>
+        <Button mode="contained" onPress={fetchStudents} style={styles.retryButton}>
+          Retry
+        </Button>
+      </View>
+    );
+  }
 
   return (
     <>
       <StatusBar barStyle="light-content" backgroundColor="#5B4DBC" />
       <SafeAreaView style={styles.container}>
-      {isLoading ? (
+        {isLoading ? (
           <View style={styles.loaderContainer}>
             <PencilLoader size={100} color="#5B4DBC" />
           </View>
         ) : (
           <>
-        <View style={styles.selectContainer}>
+            <View style={styles.selectContainer}>
+              <Text style={styles.label}>Select Class</Text>
+              <View style={styles.pickerContainer}>
+                <Picker
+                  selectedValue={selectedClass}
+                  onValueChange={setSelectedClass}
+                  mode="dropdown"
+                  style={styles.picker}
+                >
+                  {classes.map((className) => (
+                    <Picker.Item key={className} label={className} value={className} />
+                  ))}
+                </Picker>
+              </View>
+            </View>
 
-          <Text style={styles.label}>Select Class</Text>
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={selectedClass}
-              onValueChange={setSelectedClass}
-              mode="dropdown"
-              style={styles.picker}
+            <View style={styles.tableContainer}>
+              <View style={styles.headerRow}>
+                <Text style={[styles.headerCell, styles.nameCell]}>Student Name</Text>
+                {statuses.map(status => (
+                  <Text key={status} style={styles.headerCell}>
+                    {status}
+                  </Text>
+                ))}
+              </View>
+
+              <FlatList
+                data={students}
+                renderItem={renderItem}
+                keyExtractor={keyExtractor}
+                initialNumToRender={10}
+                maxToRenderPerBatch={10}
+                updateCellsBatchingPeriod={50}
+                windowSize={21}
+              />
+            </View>
+            <Button 
+              mode="contained" 
+              onPress={handleSubmit}
+              style={styles.submitButton}
             >
-              <Picker.Item label="Select Class" value="" />
-              {/* {classes.map(className => (
-                <Picker.Item key={className} label={className} value={className} />
-              ))} */}
-
-              <Picker.Item label={classes} value={classes} />
-            </Picker>
-          </View>
-        </View>
-
-        <View style={styles.tableContainer}>
-          <View style={styles.headerRow}>
-            <Text style={[styles.headerCell, styles.nameCell]}>Student Name</Text>
-            {statuses.map(status => (
-              <Text key={status} style={styles.headerCell}>
-                {status}
-              </Text>
-            ))}
-          </View>
-
-          <FlatList
-            data={students}
-            renderItem={renderItem}
-            keyExtractor={item => item.student_id.toString()}
-          />
-        </View>
-        <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-          <Text style={styles.submitButtonText}>Submit Attendance</Text>
-        </TouchableOpacity>
-        </>
-          )}
+              {attendanceTaken ? 'Update Attendance' : 'Submit Attendance'}
+            </Button>
+          </>
+        )}
         <Popup
-              visible={popupVisible}
-              onClose={() => setPopupVisible(false)}
-              title="Message"
-            >
-              <Text>{popupMessage}</Text>
-            </Popup>
-       
+          visible={popupVisible}
+          onClose={() => setPopupVisible(false)}
+          title="Message"
+        >
+          <Text>{popupMessage}</Text>
+        </Popup>
       </SafeAreaView>
     </>
   );
-}
+};
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'white',
     padding: 16,
   },
-
   selectContainer: {
-    justifyContent:"center",
+    justifyContent: "center",
     marginBottom: 24,
   },
   label: {
@@ -220,22 +270,10 @@ const styles = StyleSheet.create({
     borderBottomColor: '#5B4DBC',
     paddingVertical: 12,
   },
-  row: {
-    borderRadius: 20,
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#5B4DBC',
-    paddingVertical: 12,
-  },
   headerCell: {
     flex: 1,
     textAlign: 'center',
     fontWeight: 'bold',
-    color: '#333',
-  },
-  cell: {
-    flex: 1,
-    textAlign: 'center',
     color: '#333',
   },
   nameCell: {
@@ -243,34 +281,25 @@ const styles = StyleSheet.create({
     paddingLeft: 16,
     textAlign: 'left',
   },
-  radioContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  radio: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: '#5B4DBC',
-  },
-  radioSelected: {
-    backgroundColor: '#5B4DBC',
-  },
   submitButton: {
     backgroundColor: '#5B4DBC',
-    padding: 16,
-    borderRadius: 28,
-    maxWidth: '60%',
-    justifyContent: "center",
-    alignSelf: 'center',
-    alignItems: 'center',
-    marginTop: 'auto',
+    marginTop: 16,
   },
-  submitButtonText: {
-    color: '#fff',
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  errorText: {
     fontSize: 16,
-    fontWeight: 'bold',
+    color: 'red',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  retryButton: {
+    backgroundColor: '#5B4DBC',
   },
 });
+
+export default Attendance;

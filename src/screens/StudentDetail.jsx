@@ -88,6 +88,7 @@ const StudentDetail = () => {
           status: item.status === 'P' ? 'present' : 
                  item.status === 'A' ? 'absent' : 
                  item.status === 'L' ? 'late' : 
+                 item.status === 'X' ? 'holiday' :
                  item.status === 'H' ? 'holiday' :
                  item.status === 'E' ? 'excused' : 'absent'
         }))

@@ -32,7 +32,7 @@ export async function getStudents(username) {
     }
   }
 export async function addAttendance(data) {
-    // console.log("Request body:", JSON.stringify( data ));
+    console.log("Request body:", JSON.stringify( data ));
     try {
       const response = await fetch(`${API_URL}/addAttendance`, {
         method: 'POST',
