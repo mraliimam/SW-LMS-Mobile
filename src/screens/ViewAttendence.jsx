@@ -1,35 +1,36 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  StatusBar,
   FlatList,
   TouchableOpacity,
   Dimensions,
   Modal,
-  Header
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {SafeAreaView,useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getAttendance } from '../api/Signup';
 import PencilLoader from '../components/UI/PencilLoader';
 import CalendarPicker from 'react-native-calendar-picker';
 import { format } from 'date-fns';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import Icon from 'react-native-vector-icons/Ionicons';
+import { useNavigation } from '@react-navigation/native';
+import { Picker } from '@react-native-picker/picker';
 
-import Ionicons from 'react-native-vector-icons/Ionicons'
-import Icon from 'react-native-vector-icons/Ionicons'
-import {  useNavigation } from '@react-navigation/native'
-const width = Dimensions.get('window').width;
+const { width } = Dimensions.get('window');
+
 export default function ViewAttendance() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [attendanceData, setAttendanceData] = useState([]);
   const [username, setUsername] = useState('');
-  const insets = useSafeAreaInsets();
-
   const [isLoading, setIsLoading] = useState(true);
   const [showCalendar, setShowCalendar] = useState(false);
-  const navigation = useNavigation()
+  const [selectedClass, setSelectedClass] = useState(null);
+  const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
+
   useEffect(() => {
     fetchUsername();
   }, []);
@@ -48,15 +49,18 @@ export default function ViewAttendance() {
     }
   };
 
-  const fetchAttendance = async (user, date) => {
+  const fetchAttendance = useCallback(async (user, date) => {
     setIsLoading(true);
     try {
       const response = await getAttendance({
         username: user,
         dateFor: date,
       });
-      if (response && response.Classes && response.Classes[0]) {
-        setAttendanceData(response.Classes[0].attendance);
+      if (response && response.Classes) {
+        setAttendanceData(response.Classes);
+        if (response.Classes.length > 0 && !selectedClass) {
+          setSelectedClass(response.Classes[0].class_id.toString());
+        }
       } else {
         setAttendanceData([]);
       }
@@ -66,7 +70,7 @@ export default function ViewAttendance() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [selectedClass]);
 
   const handleDateChange = (date) => {
     setSelectedDate(date);
@@ -74,13 +78,13 @@ export default function ViewAttendance() {
     setShowCalendar(false);
   };
 
-  const renderItem = ({ item }) => (
-    <SafeAreaView style={styles.row}>
+  const renderAttendanceItem = ({ item }) => (
+    <View style={styles.row}>
       <Text style={[styles.cell, styles.idCell]}>{item.student_id}</Text>
       <View style={[styles.statusCell, { backgroundColor: getStatusColor(item.status) }]}>
         <Text style={styles.statusText}>{item.status}</Text>
       </View>
-    </SafeAreaView>
+    </View>
   );
 
   const getStatusColor = (status) => {
@@ -94,75 +98,88 @@ export default function ViewAttendance() {
     }
   };
 
+  const selectedClassData = attendanceData.find(classData => classData.class_id.toString() === selectedClass);
+
   return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={[styles.header, { marginTop: insets.top }]}>
-       <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={[styles.header, { marginTop: insets.top }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Icon name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
-
         <TouchableOpacity
           style={styles.dateButton}
           onPress={() => setShowCalendar(true)}>
-            <Ionicons name="calendar-outline" size={24} color="white" style={{marginRight:10}} />
+          <Ionicons name="calendar-outline" size={24} color="white" style={{marginRight: 10}} />
           <Text style={styles.dateButtonText}>
             {selectedDate ? format(selectedDate, 'MMMM d, yyyy') : 'Select Date'}
           </Text>
         </TouchableOpacity>
-            </View>
-       
-        <Modal
-          visible={showCalendar}
-          transparent={true}
-          animationType="slide"
+      </View>
+
+      <View style={styles.pickerContainer}>
+        <Picker
+          selectedValue={selectedClass}
+          onValueChange={(itemValue) => setSelectedClass(itemValue)}
+          style={styles.picker}
         >
-          <View style={styles.modalContainer}>
-            <View style={styles.calendarContainer}>
-              <CalendarPicker
-                onDateChange={handleDateChange}
-                selectedDayColor="#5B4DBC"
-                selectedDayTextColor="#FFFFFF"
-                todayBackgroundColor="#E6E6FA"
-                todayTextStyle={{ color: '#5B4DBC' }}
-                textStyle={{ color: '#333' }}
-                previousTitle="Previous"
-                nextTitle="Next"
-                previousTitleStyle={{ color: '#5B4DBC' }}
-                nextTitleStyle={{ color: '#5B4DBC' }}
-                scaleFactor={375}
-              />
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={() => setShowCalendar(false)}
-              >
-                <Text style={styles.closeButtonText}>Close</Text>
-              </TouchableOpacity>
-            </View>
+          {attendanceData.map((classData) => (
+            <Picker.Item key={classData.class_id} label={classData.class_name} value={classData.class_id.toString()} />
+          ))}
+        </Picker>
+      </View>
+
+      <Modal
+        visible={showCalendar}
+        transparent={true}
+        animationType="slide"
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.calendarContainer}>
+            <CalendarPicker
+              onDateChange={handleDateChange}
+              selectedDayColor="#5B4DBC"
+              selectedDayTextColor="#FFFFFF"
+              todayBackgroundColor="#E6E6FA"
+              todayTextStyle={{ color: '#5B4DBC' }}
+              textStyle={{ color: '#333' }}
+              previousTitle="Previous"
+              nextTitle="Next"
+              previousTitleStyle={{ color: '#5B4DBC' }}
+              nextTitleStyle={{ color: '#5B4DBC' }}
+              scaleFactor={375}
+            />
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowCalendar(false)}
+            >
+              <Text style={styles.closeButtonText}>Close</Text>
+            </TouchableOpacity>
           </View>
-        </Modal>
-        
-        {isLoading ? (
-          <View style={styles.loaderContainer}>
-            <PencilLoader size={100} color="#5B4DBC" />
-          </View>
-        ) : (
-          <View style={styles.tableContainer}>
-            <View style={styles.headerRow}>
-              <Text style={[styles.headerCell, styles.idCell]}>Student ID</Text>
-              <Text style={[styles.headerCell, styles.statusCell]}>Status</Text>
-            </View>
-            {attendanceData.length > 0 ? (
+        </View>
+      </Modal>
+      
+      {isLoading ? (
+        <View style={styles.loaderContainer}>
+          <PencilLoader size={100} color="#5B4DBC" />
+        </View>
+      ) : (
+        <View style={styles.attendanceContainer}>
+          {selectedClassData ? (
+            <>
+              <Text style={styles.className}>{selectedClassData.class_name}</Text>
               <FlatList
-                data={attendanceData}
-                renderItem={renderItem}
-                keyExtractor={item => item.id.toString()}
+                data={selectedClassData.attendance}
+                renderItem={renderAttendanceItem}
+                keyExtractor={(item) => item.id.toString()}
+                ListEmptyComponent={<Text style={styles.noDataText}>No attendance data for this class.</Text>}
               />
-            ) : (
-              <Text style={styles.noDataText}>No attendance data for this date.</Text>
-            )}
-          </View>
-        )}
-      </SafeAreaView>
+            </>
+          ) : (
+            <Text style={styles.noDataText}>No class selected or no data available.</Text>
+          )}
+        </View>
+      )}
+    </SafeAreaView>
   );
 }
 
@@ -174,9 +191,9 @@ const styles = StyleSheet.create({
   },
   backButton: {
     width: 40,
-    height:40,
-    backgroundColor:"#5B4DBC",
-    borderRadius:100,
+    height: 40,
+    backgroundColor: "#5B4DBC",
+    borderRadius: 100,
     justifyContent: 'center',
     alignItems: 'center',   
   },
@@ -191,11 +208,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#5B4DBC',
     flexDirection: 'row',
     paddingHorizontal: 10,
-    paddingVertical:15,
+    paddingVertical: 15,
     marginLeft: 20,
     marginRight: 20,
-    width:width/1.5,
-    justifyContent:"center",
+    width: width/1.5,
+    justifyContent: "center",
     borderRadius: 100,
     alignItems: 'center',
   },
@@ -203,6 +220,22 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  pickerContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    marginHorizontal: 16,
+    marginVertical: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  picker: {
+    color: '#000',
+    height: 50,
+    width: '100%',
   },
   modalContainer: {
     flex: 1,
@@ -234,11 +267,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  tableContainer: {
+  attendanceContainer: {
     flex: 1,
-    margin: 10,
-    borderRadius: 10,
+    marginHorizontal: 16,
+    marginBottom: 16,
     backgroundColor: '#FFFFFF',
+    borderRadius: 10,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -247,21 +281,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+    overflow: 'hidden',
   },
-  headerRow: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-    paddingVertical: 12,
-    backgroundColor: '#F5F5F5',
-    borderTopLeftRadius: 10,
-    borderTopRightRadius: 10,
-  },
-  headerCell: {
-    flex: 1,
-    textAlign: 'center',
+  className: {
+    fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    backgroundColor: '#5B4DBC',
+    color: 'white',
+    padding: 10,
   },
   row: {
     flexDirection: 'row',
@@ -299,3 +326,4 @@ const styles = StyleSheet.create({
     color: '#666',
   },
 });
+

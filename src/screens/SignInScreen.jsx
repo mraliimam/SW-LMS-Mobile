@@ -20,6 +20,7 @@ import EYE from 'react-native-vector-icons/Entypo';
 import { Popup } from '../components/UI/Popup';
 import {login} from '../api/Signup';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import NetInfo from '@react-native-community/netinfo';
 const { width, height } = Dimensions.get('window');
 
 export default function SignInScreen({ navigation }) {
@@ -54,11 +55,18 @@ export default function SignInScreen({ navigation }) {
   };
 
   const handleSignIn = async () => {
-    if (isLoading) return; 
+    if (isLoading) return;
     if (username === '' || password === '') {
       showPopup('Please Fill All Fields');
       return;
     }
+
+    const networkState = await NetInfo.fetch();
+    if (!networkState.isConnected) {
+      showPopup('No Internet Connection. Please check your network settings.');
+      return;
+    }
+
     setIsLoading(true);
     try {
       const response = await login(username, password);
@@ -73,7 +81,11 @@ export default function SignInScreen({ navigation }) {
         showPopup('Incorrect User Name or Password');
       }
     } catch (error) {
-      showPopup('An error occurred. Please try again.');
+      if (!networkState.isConnected) {
+        showPopup('No Internet Connection. Please check your network settings.');
+      } else {
+        showPopup('An error occurred. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }

@@ -6,18 +6,22 @@ import {
   StyleSheet, 
   TouchableOpacity, 
   TextInput, 
-  Dimensions
+  Dimensions,
+  RefreshControl
 } from 'react-native'
-import { useNavigation } from '@react-navigation/native'
+import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { SharedElement } from 'react-navigation-shared-element'
 import { getStudents } from '../api/Signup'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import PencilLoader from '../components/UI/PencilLoader'
 import Icon from 'react-native-vector-icons/Ionicons'
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
-import StudentDetail from './StudentDetail'
+import { Picker } from '@react-native-picker/picker'
+import { SafeAreaView } from 'react-native-safe-area-context'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
+
+const CACHE_KEY = 'STUDENTS_DATA'
+const CACHE_EXPIRY = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
 
 const StudentItem = memo(({ item, onPress }) => (
   <TouchableOpacity
@@ -47,41 +51,73 @@ const Students = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const [error, setError] = useState(null)
   const navigation = useNavigation()
+  const [classes, setClasses] = useState([])
+  const [selectedClass, setSelectedClass] = useState('')
+  const [refreshing, setRefreshing] = useState(false)
 
-  const fetchStudents = useCallback(async () => {
+  const fetchStudents = useCallback(async (forceRefresh = false) => {
     setIsLoading(true)
     setError(null)
     try {
-      const storedUsername = await AsyncStorage.getItem('username')
-      const response = await getStudents(storedUsername || '')
-      if (response && response.Records) {
-        setStudents(response.Records)
-        setFilteredStudents(response.Records)
-      } else {
-        throw new Error('Invalid response format')
+      let studentsData = null
+      if (!forceRefresh) {
+        const cachedData = await AsyncStorage.getItem(CACHE_KEY)
+        if (cachedData) {
+          const { data, timestamp } = JSON.parse(cachedData)
+          if (Date.now() - timestamp < CACHE_EXPIRY) {
+            studentsData = data
+          }
+        }
       }
+
+      if (!studentsData) {
+        const storedUsername = await AsyncStorage.getItem('username')
+        const response = await getStudents(storedUsername || '')
+        if (response && response.Records) {
+          studentsData = response.Records
+          await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({
+            data: studentsData,
+            timestamp: Date.now()
+          }))
+        } else {
+          throw new Error('Invalid response format')
+        }
+      }
+
+      setStudents(studentsData)
+      const uniqueClasses = [...new Set(studentsData.map(student => student.current_class))]
+      setClasses(uniqueClasses)
+      setSelectedClass(uniqueClasses[0] || '')
+      setFilteredStudents(studentsData.filter(student => student.current_class === uniqueClasses[0]))
     } catch (error) {
       console.error('Error fetching students:', error)
       setError('Failed to load students. Please try again.')
     } finally {
       setIsLoading(false)
+      setRefreshing(false)
     }
   }, [])
 
-  useEffect(() => {
-    fetchStudents()
-  }, [fetchStudents])
+  useFocusEffect(
+    useCallback(() => {
+      fetchStudents()
+    }, [fetchStudents])
+  )
 
   useEffect(() => {
-    const filtered = students.filter(student =>
+    const searchFiltered = students.filter(student =>
       student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       student.student_id.includes(searchQuery)
     )
-    setFilteredStudents(filtered)
-  }, [searchQuery, students])
+    
+    const classFiltered = searchQuery
+      ? searchFiltered
+      : students.filter(student => student.current_class === selectedClass)
+    
+    setFilteredStudents(classFiltered)
+  }, [searchQuery, students, selectedClass])
 
   const navigateToStudentDetail = useCallback((student) => {
-    console.log(student)
     navigation.navigate('StudentDetail', { student })
   }, [navigation])
 
@@ -89,11 +125,21 @@ const Students = () => {
     <StudentItem item={item} onPress={navigateToStudentDetail} />
   ), [navigateToStudentDetail])
 
+  const handleClassChange = useCallback((itemValue) => {
+    setSelectedClass(itemValue)
+    setSearchQuery('') // Clear search query when changing class
+  }, [])
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true)
+    fetchStudents(true)
+  }, [fetchStudents])
+
   if (error) {
     return (
       <View style={styles.centerContainer}>
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={fetchStudents}>
+        <TouchableOpacity style={styles.retryButton} onPress={() => fetchStudents(true)}>
           <Text style={styles.retryButtonText}>Retry</Text>
         </TouchableOpacity>
       </View>
@@ -117,7 +163,17 @@ const Students = () => {
           />
         </View>
       </View>
-
+      <View style={styles.pickerContainer}>
+        <Picker
+          selectedValue={selectedClass}
+          onValueChange={handleClassChange}
+          style={styles.picker}
+          >
+          {classes.map((className) => (
+            <Picker.Item key={className} label={className} value={className} />
+          ))}
+        </Picker>
+      </View>
       {isLoading ? (
         <View style={styles.centerContainer}>
           <PencilLoader size={100} color="#5B4DBC" />
@@ -137,6 +193,9 @@ const Students = () => {
           maxToRenderPerBatch={10}
           initialNumToRender={10}
           removeClippedSubviews={true}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
         />
       )}
     </SafeAreaView>
@@ -147,7 +206,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F5F5F5',
-    paddingTop:10
+    paddingTop: 10
   },
   header: {
     flexDirection: "row",
@@ -195,6 +254,22 @@ const styles = StyleSheet.create({
     height: 40,
     fontSize: 16,
   },
+  pickerContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  picker: {
+    color: 'black',
+    height: 50,
+    width: '100%',
+  },
   row: {
     justifyContent: 'space-between',
     paddingHorizontal: 16,
@@ -207,7 +282,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 16,
     marginBottom: 12,
-    width: (SCREEN_WIDTH - 48) / 2, // Adjust width based on screen size
+    width: (SCREEN_WIDTH - 48) / 2,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },

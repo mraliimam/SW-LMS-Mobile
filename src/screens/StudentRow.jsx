@@ -10,7 +10,10 @@ const StudentRow = memo(({ item, attendance, statuses, onAttendanceChange, atten
       {statuses.map(status => (
         <TouchableOpacity
           key={status}
-          style={styles.radioContainer}
+          style={[
+            styles.radioContainer,
+            attendanceTaken && styles.radioContainerTaken
+          ]}
           onPress={() => onAttendanceChange(item.student_id, status)}
         >
           <View
@@ -61,6 +64,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     fontSize: 10,
     color: '#fff',
+  },
+  radioContainerTaken: {
+    opacity: 0.8,
   },
 });
 

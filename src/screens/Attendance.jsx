@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, {useMemo, useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -28,8 +28,11 @@ const Attendance = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [classes, setClasses] = useState([]);
   const [attendanceTaken, setAttendanceTaken] = useState(false);
-
   const statuses = ['P', 'A', 'X', 'L/E'];
+  const filteredStudents = useMemo(() => 
+    students.filter(student => student.current_class === selectedClass),
+    [selectedClass, students]
+  );
 
   const showPopup = useCallback((message) => {
     setPopupMessage(message);
@@ -38,13 +41,24 @@ const Attendance = () => {
 
 useEffect(() => {
   const Getusername = async()=>{
-
     const storedUsername = await AsyncStorage.getItem('username');
     setUsername(storedUsername);
     fetchStudents();
   }
   Getusername()
-},[])
+},[fetchStudents])
+
+  // useEffect(() => {
+  //   setFilteredStudents(students.filter(student => student.current_class === selectedClass));
+  // }, [selectedClass, students]);
+
+  const handleAttendanceChange = useCallback((studentId, status) => {
+    setAttendance(prev => ({
+      ...prev,
+      [studentId]: status === 'L/E' ? 'E' : status,
+    }));
+  }, []);
+
   const fetchStudents = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -52,13 +66,10 @@ useEffect(() => {
       setUsername(storedUsername);
       const response = await getStudents(storedUsername);
       if (response && response.Records) {
+        const uniqueClasses = [...new Set(response.Records.map(student => student.current_class))];
         setStudents(response.Records);
-        if (response.Records.length > 0) {
-          setClass_id(response.Records[0].current_class_id);
-          setClasses([response.Records[0].current_class]);
-          setSelectedClass(response.Records[0].current_class);
-        }
-        // console.log('1000')
+        setClasses(uniqueClasses);
+        setSelectedClass(prevClass => prevClass || uniqueClasses[0]);
         await fetchAttendance();
       }
     } catch (error) {
@@ -67,10 +78,9 @@ useEffect(() => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [fetchAttendance]);
 
   const fetchAttendance = useCallback(async () => {
-    // console.log('here is something:>')
     try {
       const currentDate = new Date().toISOString().split('T')[0];
       const storedUsername = await AsyncStorage.getItem('username');
@@ -78,34 +88,25 @@ useEffect(() => {
         username: storedUsername,
         dateFor: currentDate
       };
-      // console.log('what is this <><>')
       const response = await getAttendance(body);
-      // console.log('what is that <><>',response)
       if (response && response.Classes && response.Classes.length > 0) {
-        const classData = response.Classes[0];
-        
-        // console.log('loli')
+        const classData = response.Classes[0];        
         const attendanceData = classData.attendance.reduce((acc, item) => {
           acc[item.student_id] = item.status;
           return acc;
         }, {});
         setAttendance(attendanceData);
         setAttendanceTaken(true);
+        setSelectedClass(classData.class_name || selectedClass);
       } else {
         setAttendanceTaken(false);
+        setAttendance({});
       }
     } catch (error) {
       console.error('Error fetching attendance:', error);
       setError('Failed to fetch attendance. Please try again.');
     }
-  }, [username]);
-
-  const handleAttendanceChange = useCallback((studentId, status) => {
-    setAttendance(prev => ({
-      ...prev,
-      [studentId]: status === 'L/E' ? 'E' : status,
-    }));
-  }, []);
+  }, [selectedClass]);
 
   const handleSubmit = useCallback(async () => {
     try {
@@ -115,9 +116,10 @@ useEffect(() => {
         status,
         date_added: currentDate,
       }));
+      const selectedClassId = students.find(student => student.current_class === selectedClass)?.current_class_id;
       const body = {
         username: username,
-        class_id: Class_id, 
+        class_id: selectedClassId,
         attendance: attendanceData,
       };
       const response = await addAttendance(body);
@@ -129,7 +131,7 @@ useEffect(() => {
       console.error('Error submitting attendance:', error);
       setError('Failed to submit attendance. Please try again.');
     }
-  }, [attendance, username, Class_id, showPopup]);
+  }, [attendance, username, selectedClass, students, showPopup]);
 
   const renderItem = useCallback(({ item }) => (
     <StudentRow
@@ -143,6 +145,40 @@ useEffect(() => {
 
   const keyExtractor = useCallback((item) => item.student_id.toString(), []);
 
+  const handleClassChange = useCallback(async (newClass) => {
+    setSelectedClass(newClass);
+    // Fetch attendance for all classes
+    const currentDate = new Date().toISOString().split('T')[0];
+    const body = {
+      username: username,
+      dateFor: currentDate
+    };
+    
+    try {
+      const response = await getAttendance(body);
+      if (response && response.Classes) {
+        const selectedClassData = response.Classes.find(
+          classData => classData.class_name === newClass
+        );
+        
+        if (selectedClassData && selectedClassData.attendance.length > 0) {
+          const attendanceData = selectedClassData.attendance.reduce((acc, item) => {
+            acc[item.student_id] = item.status;
+            return acc;
+          }, {});
+          setAttendance(attendanceData);
+          setAttendanceTaken(true);
+        } else {
+          setAttendanceTaken(false);
+          setAttendance({});
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching attendance:', error);
+      setError('Failed to fetch attendance. Please try again.');
+    }
+  }, [username]);
+
   if (error) {
     return (
       <View style={styles.errorContainer}>
@@ -153,7 +189,6 @@ useEffect(() => {
       </View>
     );
   }
-
   return (
     <>
       <StatusBar barStyle="light-content" backgroundColor="#5B4DBC" />
@@ -169,10 +204,9 @@ useEffect(() => {
               <View style={styles.pickerContainer}>
                 <Picker
                   selectedValue={selectedClass}
-                  onValueChange={setSelectedClass}
+                  onValueChange={handleClassChange}
                   mode="dropdown"
-                  style={styles.picker}
-                >
+                  style={styles.picker}>
                   {classes.map((className) => (
                     <Picker.Item key={className} label={className} value={className} />
                   ))}
@@ -189,16 +223,21 @@ useEffect(() => {
                   </Text>
                 ))}
               </View>
-
               <FlatList
-                data={students}
-                renderItem={renderItem}
-                keyExtractor={keyExtractor}
-                initialNumToRender={10}
-                maxToRenderPerBatch={10}
-                updateCellsBatchingPeriod={50}
-                windowSize={21}
-              />
+        data={filteredStudents}
+        renderItem={renderItem}
+        keyExtractor={keyExtractor}
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        updateCellsBatchingPeriod={50}
+        windowSize={21}
+        removeClippedSubviews={true}
+        getItemLayout={(data, index) => ({
+          length: 50, // Adjust this value based on your StudentRow height
+          offset: 50 * index,
+          index,
+        })}
+      />
             </View>
             <Button 
               mode="contained" 

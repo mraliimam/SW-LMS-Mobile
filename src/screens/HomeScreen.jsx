@@ -35,7 +35,7 @@ const MenuItem = ({ icon, label, onPress }) => {
 export default function HomeScreen({navigation}) {
   const [popupVisible, setPopupVisible] = useState(false);
   const [username, setUsername] = useState('');
-  const [classname,setclassname] = useState('');
+  // const [classname,setclassname] = useState('');
   const menuItems = [
     { icon: 'house', label: 'Dashboard' },
     // { icon: 'homework', label: 'Homework' },
@@ -53,7 +53,7 @@ export default function HomeScreen({navigation}) {
     const fetchUsername = async () => {
       const username = await AsyncStorage.getItem('username');
       const response = await getStudents(username);
-      setclassname(response.Records[0].current_class);
+      // setclassname(response.Records[0].current_class);
       setUsername(username);
       console.log('username:>>', username);
     };
@@ -102,7 +102,7 @@ export default function HomeScreen({navigation}) {
             />
             <View style={styles.profileInfo}>
               <Text style={styles.profileName}>{username}</Text>
-              <Text style={styles.profileClass}>{classname}</Text>
+              {/* <Text style={styles.profileClass}>{classname}</Text> */}
             </View>
           </View>
           <TouchableOpacity style={styles.closeButton}>
