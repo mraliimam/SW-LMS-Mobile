@@ -253,15 +253,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   pickerContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    marginHorizontal: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    width: '100%',
+    paddingHorizontal: 32,
+    paddingBottom: 6,
   },
   picker: {
     color: 'black',
