@@ -7,6 +7,7 @@ import {
   StyleSheet,
   StatusBar,
   ImageBackground,
+  Image,
   Dimensions,
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -22,7 +23,7 @@ import {login} from '../api/Signup';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 const { width, height } = Dimensions.get('window');
-
+// import image from '../assets/image.png';
 export default function SignInScreen({ navigation }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -114,7 +115,12 @@ export default function SignInScreen({ navigation }) {
           <StatusBar backgroundColor="transparent" translucent />
           <View style={styles.header}>
             <View style={styles.iconContainer}>
-            <LOGO name="graduation-cap" size={50} color="#FF4B75" />
+            {/* <LOGO name="graduation-cap" size={50} color="#FF4B75" />
+             */}
+             <Image
+                source={require('../assets/image.png')}
+                style={{ width: 100, height: 100, borderRadius:20 }}
+              />
             </View>
             <Text style={styles.brandText}>SW-LMS</Text>
           </View>
