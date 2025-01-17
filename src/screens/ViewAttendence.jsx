@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Dimensions,
   Modal,
+  Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,7 +18,7 @@ import { format } from 'date-fns';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
-import { Picker } from '@react-native-picker/picker';
+import CustomDropdown from '../components/CustomDropdown';
 
 const { width } = Dimensions.get('window');
 
@@ -59,7 +60,7 @@ export default function ViewAttendance() {
       if (response && response.Classes) {
         setAttendanceData(response.Classes);
         if (response.Classes.length > 0 && !selectedClass) {
-          setSelectedClass(response.Classes[0].class_id.toString());
+          setSelectedClass(response.Classes[0].class_name.toString());
         }
       } else {
         setAttendanceData([]);
@@ -98,7 +99,7 @@ export default function ViewAttendance() {
     }
   };
 
-  const selectedClassData = attendanceData.find(classData => classData.class_id.toString() === selectedClass);
+  const selectedClassData = attendanceData.find(classData => classData.class_name.toString() === selectedClass);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -117,15 +118,15 @@ export default function ViewAttendance() {
       </View>
 
       <View style={styles.pickerContainer}>
-        <Picker
+        <CustomDropdown
+          data={attendanceData.map((classData) => ({
+            label: classData.class_name,
+            value: classData.class_name.toString(),
+          }))}
           selectedValue={selectedClass}
           onValueChange={(itemValue) => setSelectedClass(itemValue)}
-          style={styles.picker}
-        >
-          {attendanceData.map((classData) => (
-            <Picker.Item key={classData.class_id} label={classData.class_name} value={classData.class_id.toString()} />
-          ))}
-        </Picker>
+          placeholder="Select a class"
+        />
       </View>
 
       <Modal

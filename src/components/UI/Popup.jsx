@@ -1,9 +1,7 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, Platform } from 'react-native';
+
 export const Popup = ({ visible, onClose, children, title }) => {
-  // console.log(visible);
-  // console.log(children);
-  // console.log(title)
   return (
     <Modal
       animationType="fade"
@@ -14,7 +12,7 @@ export const Popup = ({ visible, onClose, children, title }) => {
         <View style={styles.modalView}>
           {title && <Text style={styles.modalTitle}>{title}</Text>}
           <View style={styles.modalContent}>
-          <Text style={styles.modalText}>{children}</Text>
+            <Text style={styles.modalText}>{children}</Text>
           </View>
           <TouchableOpacity
             style={styles.closeButton}
@@ -34,11 +32,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
-  modalText: {
-    color: 'black',  // Set the text color to black
-  },
   modalView: {
-    margin: 20,
+    width: '80%',
+    maxHeight: '25%',
     backgroundColor: 'white',
     borderRadius: 20,
     padding: 35,

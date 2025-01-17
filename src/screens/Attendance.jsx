@@ -6,6 +6,7 @@ import {
   SafeAreaView,
   StatusBar,
   FlatList,
+  Platform,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -14,6 +15,7 @@ import { getStudents, addAttendance, getAttendance } from '../api/Signup';
 import { Popup } from '../components/UI/Popup';
 import PencilLoader from '../components/UI/PencilLoader';
 import StudentRow from './StudentRow';
+import CustomDropdown from '../components/CustomDropdown';
 
 const Attendance = () => {
   const [loading, setLoading] = useState(false);
@@ -202,15 +204,12 @@ useEffect(() => {
             <View style={styles.selectContainer}>
               <Text style={styles.label}>Select Class</Text>
               <View style={styles.pickerContainer}>
-                <Picker
+                <CustomDropdown
+                  data={classes.map((className) => ({ label: className, value: className }))}
                   selectedValue={selectedClass}
                   onValueChange={handleClassChange}
-                  mode="dropdown"
-                  style={styles.picker}>
-                  {classes.map((className) => (
-                    <Picker.Item key={className} label={className} value={className} />
-                  ))}
-                </Picker>
+                  placeholder="Select a class"
+                />
               </View>
             </View>
 
@@ -273,15 +272,18 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '500',
-    marginBottom: 8,
+    margin:8,
+    // marginTop:8,
+    // marginBottom: 8,
     color: 'black',
   },
   pickerContainer: {
     borderRadius: 8,
-    borderWidth: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    borderColor: '#5B4DBC',
+    padding:8,
+    // borderWidth: 1,
+    // justifyContent: "center",
+    // alignItems: "center",
+    // borderColor: '#5B4DBC',
     backgroundColor: '#fff',
     borderRadius: 30,
   },

@@ -7,7 +7,8 @@ import {
   TouchableOpacity, 
   TextInput, 
   Dimensions,
-  RefreshControl
+  RefreshControl,
+  Platform
 } from 'react-native'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { SharedElement } from 'react-navigation-shared-element'
@@ -15,7 +16,7 @@ import { getStudents } from '../api/Signup'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import PencilLoader from '../components/UI/PencilLoader'
 import Icon from 'react-native-vector-icons/Ionicons'
-import { Picker } from '@react-native-picker/picker'
+import CustomDropdown from '../components/CustomDropdown'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
@@ -164,15 +165,12 @@ const Students = () => {
         </View>
       </View>
       <View style={styles.pickerContainer}>
-        <Picker
+        <CustomDropdown
+          data={classes.map((className) => ({ label: className, value: className }))}
           selectedValue={selectedClass}
           onValueChange={handleClassChange}
-          style={styles.picker}
-          >
-          {classes.map((className) => (
-            <Picker.Item key={className} label={className} value={className} />
-          ))}
-        </Picker>
+          placeholder="Select a class"
+        />
       </View>
       {isLoading ? (
         <View style={styles.centerContainer}>
