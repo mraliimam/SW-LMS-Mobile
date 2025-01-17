@@ -1,5 +1,5 @@
 import React, { useCallback, useState, useEffect } from 'react'
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Platform } from 'react-native'
+import { View, Text, StyleSheet,Image, TouchableOpacity, Animated, Platform } from 'react-native'
 import { useRoute, useNavigation } from '@react-navigation/native'
 import { SharedElement } from 'react-navigation-shared-element'
 import Icon from 'react-native-vector-icons/Ionicons'
@@ -113,7 +113,6 @@ const StudentDetail = () => {
     if (!student.exams_result || student.exams_result.length === 0) {
       return <Text style={styles.noExams}>No exam results available</Text>
     }
-
     return student.exams_result.map((exam, index) => (
       <View key={index} style={styles.examContainer}>
         <Text style={styles.examName}>{exam.main_exam_name}</Text>
@@ -197,7 +196,8 @@ const StudentDetail = () => {
     >
       <SafeAreaView style={styles.container}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Icon name="arrow-back" size={24} color="#5B4DBC" />
+          {/* <Icon name="arrow-back" size={24} color="#5B4DBC" /> */}
+          <Image source={require('../assets/arrow.png')} style={{ width: 24, height: 24 , tintColor: '#5B4DBC'}} />
         </TouchableOpacity>
         
        
@@ -217,22 +217,24 @@ const StudentDetail = () => {
 
           <View style={styles.infoContainer}>
             <View style={styles.infoRow}>
-              <Icon name="person" size={20} color="#666" style={styles.infoIcon} />
+              {/* <Icon name="person" size={20} color="#666" style={styles.infoIcon} /> */}
+              <Image source={require('../assets/usericon.png')} style={{ width: 19, height:19 , tintColor: '#666',marginRight:10}} />
               <Text style={styles.infoLabel}>Father's Name:</Text>
               <Text style={styles.infoValue}>{student.father_name}</Text>
             </View>
             <View style={styles.infoRow}>
-              <Icon name="calendar" size={20} color="#666" style={styles.infoIcon} />
+              {/* <Icon name="calendar" size={20} color="#666" style={styles.infoIcon} /> */}
+              <Image source={require('../assets/calendar.png')} style={{ width: 19, height:19 , tintColor: '#666',marginRight:10}} />
               <Text style={styles.infoLabel}>Date of Birth:</Text>
               <Text style={styles.infoValue}>{student.dob}</Text>
             </View>
             <View style={styles.infoRow}>
-              <Icon name="school" size={20} color="#666" style={styles.infoIcon} />
+              <Image source={require('../assets/graduate-hat.png')} style={{ width: 27, height:27 , tintColor: '#666',marginRight:10,marginLeft:-5}} />
               <Text style={styles.infoLabel}>Current Class:</Text>
               <Text style={styles.infoValue}>{student.current_class}</Text>
             </View>
             <View style={styles.infoRow}>
-              <Icon name="call" size={20} color="#666" style={styles.infoIcon} />
+              <Image source={require('../assets/phone.png')} style={{ width: 19, height:19 , tintColor: '#666',marginRight:10}} />
               <Text style={styles.infoLabel}>Phone Number:</Text>
               <Text style={styles.infoValue}>{student.phone_number}</Text>
             </View>

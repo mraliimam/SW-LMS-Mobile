@@ -16,14 +16,14 @@ import {
   Keyboard,
   EmitterSubscription,
 } from 'react-native';
-import LOGO from 'react-native-vector-icons/FontAwesome';
-import EYE from 'react-native-vector-icons/Entypo';
+// import LOGO from 'react-native-vector-icons/FontAwesome';
+// import EYE from 'react-native-vector-icons/Entypo';
 import { Popup } from '../components/UI/Popup';
 import {login} from '../api/Signup';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 const { width, height } = Dimensions.get('window');
-// import image from '../assets/image.png';
+
 export default function SignInScreen({ navigation }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -156,12 +156,16 @@ export default function SignInScreen({ navigation }) {
                   placeholderTextColor={'#d6d6d6'}
                 />
                 <TouchableOpacity onPress={togglePasswordVisibility} style={styles.eyeButton}>
-                <EYE 
+                {/* <EYE 
                       style={{ opacity: 0.4 }}
                       name={showPassword ? "eye-with-line" : "eye"}
                       size={20} 
                       color="#666666" 
-                    />
+                    /> */}
+                     <Image
+                source={showPassword ? require('../assets/hide.png'):require('../assets/view.png')}
+                style={{ opacity:0.4, width: 20, height: 20 }}
+              />
                 </TouchableOpacity>
               </View>
             </View>

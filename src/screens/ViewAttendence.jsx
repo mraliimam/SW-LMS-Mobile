@@ -8,6 +8,7 @@ import {
   Dimensions,
   Modal,
   Platform,
+  Image
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,8 +16,8 @@ import { getAttendance } from '../api/Signup';
 import PencilLoader from '../components/UI/PencilLoader';
 import CalendarPicker from 'react-native-calendar-picker';
 import { format } from 'date-fns';
-import Ionicons from 'react-native-vector-icons/Ionicons';
-import Icon from 'react-native-vector-icons/Ionicons';
+// import Ionicons from 'react-native-vector-icons/Ionicons';
+
 import { useNavigation } from '@react-navigation/native';
 import CustomDropdown from '../components/CustomDropdown';
 
@@ -105,12 +106,14 @@ export default function ViewAttendance() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={[styles.header, { marginTop: insets.top }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Icon name="arrow-back" size={24} color="white" />
+          {/* <Icon name="arrow-back" size={24} color="white" /> */}
+          <Image source={require('../assets/arrow.png')} style={{tintColor:"white",width: 24, height: 24}} />
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.dateButton}
           onPress={() => setShowCalendar(true)}>
-          <Ionicons name="calendar-outline" size={24} color="white" style={{marginRight: 10}} />
+          {/* <Ionicons name="calendar-outline" size={24} color="white" style={{marginRight: 10}} /> */}
+          <Image source={require('../assets/calendar.png')} style={{tintColor:"white",width: 24, height: 24,marginRight: 10}} />
           <Text style={styles.dateButtonText}>
             {selectedDate ? format(selectedDate, 'MMMM d, yyyy') : 'Select Date'}
           </Text>

@@ -1,7 +1,7 @@
 import React,{useState,useEffect} from 'react';
 import {View,Text,TouchableOpacity,StyleSheet,ScrollView,Image,StatusBar,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+// import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Popup } from '../components/UI/Popup';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -106,7 +106,10 @@ export default function HomeScreen({navigation}) {
             </View>
           </View>
           <TouchableOpacity style={styles.closeButton}>
-            <Icon name="menu" size={24} color="white" />
+            {/* <Icon name="menu" size={24} color="white" /> */}
+            <Image
+              source={require('../assets/menu.png')}
+              style={{width: 25, height:25,tintColor:"white"}}/>
           </TouchableOpacity>
         </View>
 

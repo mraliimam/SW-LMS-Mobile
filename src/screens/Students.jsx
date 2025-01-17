@@ -7,6 +7,7 @@ import {
   TouchableOpacity, 
   TextInput, 
   Dimensions,
+  Image,
   RefreshControl,
   Platform
 } from 'react-native'
@@ -15,7 +16,7 @@ import { SharedElement } from 'react-navigation-shared-element'
 import { getStudents } from '../api/Signup'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import PencilLoader from '../components/UI/PencilLoader'
-import Icon from 'react-native-vector-icons/Ionicons'
+// import Icon from 'react-native-vector-icons/Ionicons'
 import CustomDropdown from '../components/CustomDropdown'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
@@ -151,10 +152,12 @@ const Students = () => {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Icon name="arrow-back" size={24} color="white" />
+          {/* <Icon name="arrow-back" size={24} color="white" /> */}
+          <Image source={require('../assets/arrow.png')} style={{ width: 24, height: 24 , tintColor: 'white'}} />
         </TouchableOpacity>
         <View style={styles.searchContainer}>
-          <Icon name="search" size={20} color="#666" style={styles.searchIcon} />
+          {/* <Icon name="search" size={20} color="#666" style={styles.searchIcon} /> */}
+          <Image source={require('../assets/search.png')} style={{ width: 20, height: 20 , tintColor: '#666', borderWidth:14 , marginRight: 8}} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search by name or ID"
