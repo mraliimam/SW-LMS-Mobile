@@ -202,7 +202,7 @@ useEffect(() => {
         ) : (
           <>
             <View style={styles.selectContainer}>
-              <Text style={styles.label}>Select Class</Text>
+              {/* <Text style={styles.label}>Select Class</Text> */}
               <View style={styles.pickerContainer}>
                 <CustomDropdown
                   data={classes.map((className) => ({ label: className, value: className }))}
@@ -273,17 +273,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     margin:8,
-    // marginTop:8,
-    // marginBottom: 8,
     color: 'black',
   },
   pickerContainer: {
     borderRadius: 8,
-    padding:8,
-    // borderWidth: 1,
-    // justifyContent: "center",
-    // alignItems: "center",
-    // borderColor: '#5B4DBC',
+    // padding:8,
+    paddingHorizontal:16,
     backgroundColor: '#fff',
     borderRadius: 30,
   },
