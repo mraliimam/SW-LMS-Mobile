@@ -152,12 +152,10 @@ const Students = () => {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          {/* <Icon name="arrow-back" size={24} color="white" /> */}
           <Image source={require('../assets/arrow.png')} style={{ width: 24, height: 24 , tintColor: 'white'}} />
         </TouchableOpacity>
         <View style={styles.searchContainer}>
-          {/* <Icon name="search" size={20} color="#666" style={styles.searchIcon} /> */}
-          <Image source={require('../assets/search.png')} style={{ width: 20, height: 20 , tintColor: '#666', borderWidth:14 , marginRight: 8}} />
+          <Image source={require('../assets/search.png')} style={{ width: 24, height: 24 , marginRight: 8}} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search by name or ID"

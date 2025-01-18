@@ -34,10 +34,18 @@ const styles = StyleSheet.create({
   },
   modalView: {
     width: '80%',
-    maxHeight: '25%',
+    minHeight: Platform.select({
+      ios: '25%',
+      android: '25%'
+    }),
+    maxHeight: Platform.select({
+      ios: '40%',
+      android: '40%'
+    }),
     backgroundColor: 'white',
     borderRadius: 20,
-    padding: 35,
+    padding: 20,
+    paddingBottom: 60,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: {
@@ -46,7 +54,14 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.25,
     shadowRadius: 4,
-    elevation: 5
+    elevation: 5,
+    position: 'relative',
+  },
+  modalContent: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
   },
   modalTitle: {
     marginBottom: 15,
@@ -55,15 +70,14 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
-  modalContent: {
-    marginBottom: 15,
-    alignItems: 'center',
-  },
   closeButton: {
     backgroundColor: '#FF4B75',
     borderRadius: 20,
     padding: 10,
-    elevation: 2
+    elevation: 2,
+    position: 'absolute',
+    bottom: 15,
+    width: '50%',
   },
   closeButtonText: {
     color: 'white',

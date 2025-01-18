@@ -75,7 +75,7 @@ export default function Navigation() {
           <Stack.Screen
             name="Attendance"
             component={Attendance}
-            options={{ headerShown: true }}
+            options={{ headerShown: false }}
           />
           <Stack.Screen
             name="ViewAttendance"

@@ -7,8 +7,10 @@ import {
   StatusBar,
   FlatList,
   Platform,
+  TouchableOpacity,
+  Image
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
+import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Button } from 'react-native-paper';
 import { getStudents, addAttendance, getAttendance } from '../api/Signup';
@@ -24,6 +26,7 @@ const Attendance = () => {
   const [students, setStudents] = useState([]);
   const [attendance, setAttendance] = useState({});
   const [username, setUsername] = useState('');
+  const navigation = useNavigation();
   const [popupVisible, setPopupVisible] = useState(false);
   const [Class_id, setClass_id] = useState('');
   const [popupMessage, setPopupMessage] = useState('');
@@ -50,9 +53,6 @@ useEffect(() => {
   Getusername()
 },[fetchStudents])
 
-  // useEffect(() => {
-  //   setFilteredStudents(students.filter(student => student.current_class === selectedClass));
-  // }, [selectedClass, students]);
 
   const handleAttendanceChange = useCallback((studentId, status) => {
     setAttendance(prev => ({
@@ -194,86 +194,104 @@ useEffect(() => {
   return (
     <>
       <StatusBar barStyle="light-content" backgroundColor="#5B4DBC" />
-      <SafeAreaView style={styles.container}>
-        {isLoading ? (
-          <View style={styles.loaderContainer}>
-            <PencilLoader size={100} color="#5B4DBC" />
-          </View>
-        ) : (
-          <>
-            <View style={styles.selectContainer}>
-              {/* <Text style={styles.label}>Select Class</Text> */}
-              <View style={styles.pickerContainer}>
-                <CustomDropdown
-                  data={classes.map((className) => ({ label: className, value: className }))}
-                  selectedValue={selectedClass}
-                  onValueChange={handleClassChange}
-                  placeholder="Select a class"
-                />
-              </View>
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.container}>
+          {isLoading ? (
+            <View style={styles.loaderContainer}>
+              <PencilLoader size={100} color="#5B4DBC" />
             </View>
+          ) : (
+            <>
+              <View style={styles.selectContainer}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center',marginBottom: 16 }}>
+                  <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                    <Image source={require('../assets/arrow.png')} style={{ width: 24, height: 24, tintColor: 'white' }} />
+                  </TouchableOpacity>
+                  <Text style={styles.label}>Attendance</Text>
+                </View>
+                <View style={styles.pickerContainer}>
+                  <CustomDropdown
+                    data={classes.map((className) => ({ label: className, value: className }))}
+                    selectedValue={selectedClass}
+                    onValueChange={handleClassChange}
+                    placeholder="Select a class"
+                  />
+                </View>
+              </View>
 
-            <View style={styles.tableContainer}>
-              <View style={styles.headerRow}>
-                <Text style={[styles.headerCell, styles.nameCell]}>Student Name</Text>
-                {statuses.map(status => (
-                  <Text key={status} style={styles.headerCell}>
-                    {status}
-                  </Text>
-                ))}
+              <View style={styles.tableContainer}>
+                <View style={styles.headerRow}>
+                  <Text style={[styles.headerCell, styles.nameCell]}>Student Name</Text>
+                  {statuses.map(status => (
+                    <Text key={status} style={styles.headerCell}>
+                      {status}
+                    </Text>
+                  ))}
+                </View>
+                <FlatList
+          data={filteredStudents}
+          renderItem={renderItem}
+          keyExtractor={keyExtractor}
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          updateCellsBatchingPeriod={50}
+          windowSize={21}
+          removeClippedSubviews={true}
+          getItemLayout={(data, index) => ({
+            length: 50, 
+            offset: 50 * index,
+            index,
+          })}
+        />
               </View>
-              <FlatList
-        data={filteredStudents}
-        renderItem={renderItem}
-        keyExtractor={keyExtractor}
-        initialNumToRender={10}
-        maxToRenderPerBatch={10}
-        updateCellsBatchingPeriod={50}
-        windowSize={21}
-        removeClippedSubviews={true}
-        getItemLayout={(data, index) => ({
-          length: 50, // Adjust this value based on your StudentRow height
-          offset: 50 * index,
-          index,
-        })}
-      />
-            </View>
-            <Button 
-              mode="contained" 
-              onPress={handleSubmit}
-              style={styles.submitButton}
-            >
-              {attendanceTaken ? 'Update Attendance' : 'Submit Attendance'}
-            </Button>
-          </>
-        )}
-        <Popup
-          visible={popupVisible}
-          onClose={() => setPopupVisible(false)}
-          title="Message"
-        >
-          <Text>{popupMessage}</Text>
-        </Popup>
+              <Button 
+                mode="contained" 
+                onPress={handleSubmit}
+                style={styles.submitButton}
+              >
+                {attendanceTaken ? 'Update Attendance' : 'Submit Attendance'}
+              </Button>
+            </>
+          )}
+          <Popup
+            visible={popupVisible}
+            onClose={() => setPopupVisible(false)}
+            title="Message"
+          >
+            <Text>{popupMessage}</Text>
+          </Popup>
+        </View>
       </SafeAreaView>
     </>
   );
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: 'white',
+  },
   container: {
     flex: 1,
     backgroundColor: 'white',
-    padding: 16,
+    padding: Platform.select({
+      ios: 16,
+      android: 16,
+    }),
   },
   selectContainer: {
-    justifyContent: "center",
+    // marginBottom: 24,
+    // justifyContent: "center",
     marginBottom: 24,
   },
   label: {
-    fontSize: 16,
+    marginRight:15,
+    fontSize: 24,
     fontWeight: '500',
-    margin:8,
     color: 'black',
+    textAlign: 'center',
+    marginBottom: 8,
+    flex: 1,
   },
   pickerContainer: {
     borderRadius: 8,
@@ -286,6 +304,15 @@ const styles = StyleSheet.create({
     height: 50,
     width: '100%',
     color: 'black'
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 100,
+    // justifyContent: 'flex-start',
+    backgroundColor: '#5B4DBC',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   tableContainer: {
     borderRadius: 20,
