@@ -57,6 +57,12 @@ const styles = StyleSheet.create({
     elevation: 5,
     position: 'relative',
   },
+  modalText: {
+    marginBottom: 15,
+    textAlign: 'center',
+    color: '#000',
+    fontSize: 16,
+  },
   modalContent: {
     width: '100%',
     alignItems: 'center',
