@@ -1,9 +1,8 @@
 import { API_URL } from '@env';
-
 export  async function login(username, password) {
   console.log(username, password);
   try {
-    const response = await fetch(`https://swlms.maaqservices.com/login`, {
+    const response = await fetch(`${API_URL}/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -20,7 +19,7 @@ export  async function login(username, password) {
 export async function getStudents(username) {
   console.log('for getstudents:>',username)
     try {
-      const response = await fetch(`https://swlms.maaqservices.com/getStudents`, {
+      const response = await fetch(`${API_URL}/getStudents`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -38,7 +37,7 @@ export async function getStudents(username) {
 export async function addAttendance(data) {
     console.log("Request body:", JSON.stringify( data ));
     try {
-      const response = await fetch(`https://swlms.maaqservices.com/addAttendance`, {
+      const response = await fetch(`${API_URL}/addAttendance`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -55,7 +54,7 @@ export async function addAttendance(data) {
   }
 export async function getAttendance(data) {
     try {
-      const response = await fetch(`https://swlms.maaqservices.com/getAttendance`, {
+      const response = await fetch(`${API_URL}/getAttendance`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -71,7 +70,7 @@ export async function getAttendance(data) {
   }
 export async function getStudentAttendance(data) {
     try {
-      const response = await fetch(`https://swlms.maaqservices.com/getStudentAttendance`, {
+      const response = await fetch(`${API_URL}/getStudentAttendance`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
