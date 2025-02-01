@@ -38,6 +38,7 @@ const Attendance = () => {
     students.filter(student => student.current_class === selectedClass),
     [selectedClass, students]
   );
+  const [teachersData, setTeachersData] = useState([]);
 
   const showPopup = useCallback((message) => {
     setPopupMessage(message);
@@ -66,17 +67,31 @@ useEffect(() => {
     try {
       const storedUsername = await AsyncStorage.getItem('username');
       setUsername(storedUsername);
-      const response = await getStudents(storedUsername);
-      if (response && response.Records) {
-        const uniqueClasses = [...new Set(response.Records.map(student => student.current_class))];
-        setStudents(response.Records);
+      
+      // Fetch students
+      const studentsResponse = await getStudents(storedUsername);
+      
+      // Fetch teachers data
+      const attendanceResponse = await getAttendance({
+        username: storedUsername,
+        dateFor: new Date().toISOString().split('T')[0]
+      });
+
+      if (studentsResponse && studentsResponse.Records) {
+        const uniqueClasses = [...new Set(studentsResponse.Records.map(student => student.current_class))];
+        setStudents(studentsResponse.Records);
         setClasses(uniqueClasses);
         setSelectedClass(prevClass => prevClass || uniqueClasses[0]);
-        await fetchAttendance();
       }
+
+      if (attendanceResponse && attendanceResponse.Classes) {
+        setTeachersData(attendanceResponse.Classes);
+      }
+
+      await fetchAttendance();
     } catch (error) {
-      console.error('Error fetching students:', error);
-      setError('Failed to fetch students. Please try again.');
+      console.error('Error fetching data:', error);
+      setError('Failed to fetch data. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -211,7 +226,14 @@ useEffect(() => {
                 </View>
                 <View style={styles.pickerContainer}>
                   <CustomDropdown
-                    data={classes.map((className) => ({ label: className, value: className }))}
+                    data={classes.map((className) => {
+                      const classData = teachersData.find(c => c.class_name === className);
+                      return {
+                        label: className,
+                        value: className,
+                        teacher: classData ? classData.teacher_name : ''
+                      };
+                    })}
                     selectedValue={selectedClass}
                     onValueChange={handleClassChange}
                     placeholder="Select a class"
@@ -249,7 +271,7 @@ useEffect(() => {
                 onPress={handleSubmit}
                 style={styles.submitButton}
               >
-                {attendanceTaken ? 'Update Attendance' : 'Submit Attendance'}
+                Submit Attendance
               </Button>
             </>
           )}

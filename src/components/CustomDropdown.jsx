@@ -36,13 +36,26 @@ const CustomDropdown = ({ data, selectedValue, onValueChange, placeholder }) => 
     }
     return label;
   };
+
+  // Find the selected item to get the teacher
+  const selectedItem = data.find(item => item.value === selectedValue);
+
   return (
     <View>
       <TouchableOpacity
         style={styles.dropdownButton}
         onPress={() => setModalVisible(true)}>
-       <Text style={styles.dropdownButtonText}>
-          {selectedValue ? transformLabel(selectedValue) : placeholder}
+        <Text style={styles.dropdownButtonText}>
+          {selectedValue ? (
+            <>
+              {transformLabel(selectedValue)}
+              {selectedItem?.teacher && (
+                <Text style={styles.teacherText}>{` (${selectedItem.teacher})`}</Text>
+              )}
+            </>
+          ) : (
+            placeholder
+          )}
         </Text>
       </TouchableOpacity>
 
@@ -68,7 +81,7 @@ const CustomDropdown = ({ data, selectedValue, onValueChange, placeholder }) => 
                   <Text style={styles.itemText}>{transformLabel(item.label)}</Text>
                   <Text style={styles.itemText}>{""}</Text>
                   <Text style={styles.itemText}>{`(${item.teacher})`}</Text>
-                  </TouchableOpacity>
+                </TouchableOpacity>
               )}
             />
           </View>
@@ -112,6 +125,10 @@ const styles = StyleSheet.create({
   itemText: {
     color:"black",
     fontSize: 16,
+  },
+  teacherText: {
+    color: '#666',  // A slightly lighter color for the teacher name
+    fontSize: 14,   // Slightly smaller font size
   },
 });
 

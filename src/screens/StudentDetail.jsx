@@ -10,6 +10,7 @@ import { Button } from 'react-native'
 import { DatePickerModal } from 'react-native-paper-dates'
 import { Provider as PaperProvider } from 'react-native-paper'
 import { registerTranslation } from 'react-native-paper-dates'
+import PencilLoader from '../components/UI/PencilLoader'
 
 registerTranslation('en', {
   save: 'Save',
@@ -159,15 +160,6 @@ const StudentDetail = () => {
           dateRange === 'custom' && styles.activeFilterText
         ]}>Custom</Text>
       </TouchableOpacity>
-
-      {/* {dateRange === 'custom' && range.startDate && range.endDate && (
-        <View style={styles.customDateContainer}>
-          <Text style={styles.dateText}>
-            {range.startDate.toLocaleDateString()} - {range.endDate.toLocaleDateString()}
-          </Text>
-        </View>
-      )} */}
-
       <DatePickerModal
         locale="en"
         mode="range"
@@ -177,8 +169,8 @@ const StudentDetail = () => {
         endDate={range.endDate}
         onConfirm={onConfirm}
         validRange={{
-          startDate: new Date(2021, 1, 1),  // Adjust this as needed
-          endDate: new Date(),  // Today
+          startDate: new Date(2022, 1, 1),  
+          endDate: new Date(),  
         }}
       />
     </View>
@@ -255,8 +247,10 @@ const StudentDetail = () => {
           <View style={styles.chartContainer}>
             {renderDateFilters()}
             {loading ? (
-              <Text>Loading attendance data...</Text>
-            ) : (
+                         <View style={styles.centerContainer}>
+                         <PencilLoader size={200} color="#5B4DBC" />
+                       </View>   ) : (
+
               <AttendanceChart attendanceData={attendanceData} />
             )}
           </View>
@@ -270,6 +264,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#5B4DBC',
+  },
+  centerContainer: {
+    // flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    color: "#5B4DBC"
   },
   scrollView: {
     flex: 1,

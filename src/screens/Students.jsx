@@ -13,12 +13,13 @@ import {
 } from 'react-native'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { SharedElement } from 'react-navigation-shared-element'
-import { getStudents } from '../api/Signup'
+import { getStudents, getAttendance } from '../api/Signup'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import PencilLoader from '../components/UI/PencilLoader'
 // import Icon from 'react-native-vector-icons/Ionicons'
 import CustomDropdown from '../components/CustomDropdown'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { format } from 'date-fns'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 
@@ -56,6 +57,66 @@ const Students = () => {
   const [classes, setClasses] = useState([])
   const [selectedClass, setSelectedClass] = useState('')
   const [refreshing, setRefreshing] = useState(false)
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [username, setUsername] = useState('');
+  const [attendanceData, setAttendanceData] = useState([]);
+  const [teachersData, setTeachersData] = useState([]);
+
+  useEffect(() => {
+    fetchUsername();
+  }, []);
+
+  const fetchUsername = async () => {
+    try {
+      const storedUsername = await AsyncStorage.getItem('username');
+      setUsername(storedUsername);
+      if (storedUsername) {
+        const today = new Date();
+        setSelectedDate(today);
+        fetchAttendance(storedUsername, format(today, 'yyyy-MM-dd'));
+      }
+    } catch (error) {
+      console.error('Error fetching username:', error);
+    }
+  };
+
+  const fetchAttendance = useCallback(
+    async (user, date) => {
+      setIsLoading(true);
+      try {
+        const response = await getAttendance({ username: user, dateFor: date });
+        console.log('response:>',response)
+        if (response && response.Classes) {
+          setAttendanceData(response.Classes);
+          if (response.Classes.length > 0 && !selectedClass) {
+            setSelectedClass(response.Classes[0].class_name.toString());
+          }
+        } else {
+          setAttendanceData([]);
+        }
+      } catch (error) {
+        console.error('Error fetching attendance:', error);
+        setAttendanceData([]);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [selectedClass]
+  );
+
+  const fetchTeachersData = useCallback(async () => {
+    try {
+      const response = await getAttendance({ 
+        username: await AsyncStorage.getItem('username'), 
+        dateFor: format(new Date(), 'yyyy-MM-dd') 
+      });
+      if (response && response.Classes) {
+        setTeachersData(response.Classes);
+      }
+    } catch (error) {
+      console.error('Error fetching teachers data:', error);
+    }
+  }, []);
 
   const fetchStudents = useCallback(async (forceRefresh = false) => {
     setIsLoading(true)
@@ -102,8 +163,9 @@ const Students = () => {
 
   useFocusEffect(
     useCallback(() => {
-      fetchStudents()
-    }, [fetchStudents])
+      fetchStudents();
+      fetchTeachersData();
+    }, [fetchStudents, fetchTeachersData])
   )
 
   useEffect(() => {
@@ -167,7 +229,14 @@ const Students = () => {
       </View>
       <View style={styles.pickerContainer}>
         <CustomDropdown
-          data={classes.map((className) => ({ label: className, value: className }))}
+          data={classes.map((className) => {
+            const classData = teachersData.find(c => c.class_name === className);
+            return {
+              label: className,
+              value: className,
+              teacher: classData ? classData.teacher_name : ''
+            };
+          })}
           selectedValue={selectedClass}
           onValueChange={handleClassChange}
           placeholder="Select a class"
