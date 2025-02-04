@@ -4,24 +4,10 @@ import { View, Text, TouchableOpacity, Modal, FlatList, StyleSheet } from 'react
 
 const CustomDropdown = ({ data, selectedValue, onValueChange, placeholder }) => {
   const [modalVisible, setModalVisible] = useState(false);
-  const [teacher, setTeacher] = useState('');
-  console.log('data:>',data)
 
-// useEffect(() => {
-//   const fetchData = async () => {
-//     try {
-//       const storedValue = await AsyncStorage.getItem('username');
-//       if (storedValue !== null) {
-//         setTeacher(storedValue);
-//       }
-//     } catch (error) {
-//       console.error('Error retrieving stored value:', error);
-//     }
-//   }  
+  console.log('CustomDropdown data:', data);
+  console.log('Selected value:', selectedValue);
 
-//   fetchData();
-// }, []);
-// console.log('here is the teacher name :>>',teacher);
   const handleSelect = (item) => {
     onValueChange(item);
     setModalVisible(false);
@@ -37,7 +23,6 @@ const CustomDropdown = ({ data, selectedValue, onValueChange, placeholder }) => 
     return label;
   };
 
-  // Find the selected item to get the teacher
   const selectedItem = data.find(item => item.value === selectedValue);
 
   return (
@@ -75,12 +60,22 @@ const CustomDropdown = ({ data, selectedValue, onValueChange, placeholder }) => 
               keyExtractor={(item) => item.value.toString()}
               renderItem={({ item }) => (
                 <TouchableOpacity
-                  style={styles.item}
+                  style={[
+                    styles.item,
+                    selectedValue === item.value && styles.selectedItem
+                  ]}
                   onPress={() => handleSelect(item.value)}
                 >
-                  <Text style={styles.itemText}>{transformLabel(item.label)}</Text>
-                  <Text style={styles.itemText}>{""}</Text>
-                  <Text style={styles.itemText}>{`(${item.teacher})`}</Text>
+                  <View style={styles.itemContent}>
+                    <Text style={styles.itemText}>
+                      {transformLabel(item.label)}
+                    </Text>
+                    {item.teacher && (
+                      <Text style={styles.teacherText}>
+                        {` (${item.teacher})`}
+                      </Text>
+                    )}
+                  </View>
                 </TouchableOpacity>
               )}
             />
@@ -126,9 +121,19 @@ const styles = StyleSheet.create({
     color:"black",
     fontSize: 16,
   },
+  itemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingRight: 10,
+  },
+  selectedItem: {
+    backgroundColor: '#f0f0f0',
+  },
   teacherText: {
-    color: '#666',  // A slightly lighter color for the teacher name
-    fontSize: 14,   // Slightly smaller font size
+    color: '#666',
+    fontSize: 14,
+    marginLeft: 8,
   },
 });
 

@@ -3615,6 +3615,11 @@ event-target-shim@^5.0.0, event-target-shim@^5.0.1:
   resolved "https://registry.npmjs.org/event-target-shim/-/event-target-shim-5.0.1.tgz"
   integrity sha512-i/2XbnSz/uxRCU6+NdVJgKWDTM427+MqYbkQzD321DuCQJUqOuJKIA0IM2+W2xtYHdKOmZ4dR6fExsd4SXL+WQ==
 
+eventemitter3@^4.0.7:
+  version "4.0.7"
+  resolved "https://registry.npmjs.org/eventemitter3/-/eventemitter3-4.0.7.tgz"
+  integrity sha512-8guHBZCwKnFhYdHr2ysuRWErTwhoN2X8XELRlrRwpmfeY2jjuUN4taQMsULKUVo1K4DvZl+0pgfyoysHxvmvEw==
+
 execa@^5.0.0, execa@^5.1.1:
   version "5.1.1"
   resolved "https://registry.npmjs.org/execa/-/execa-5.1.1.tgz"
@@ -5979,6 +5984,13 @@ react-is@^17.0.1:
   resolved "https://registry.npmjs.org/react-is/-/react-is-17.0.2.tgz"
   integrity sha512-w2GsyukL62IJnlaff/nRegPQR94C/XXamvMWmSHRJ4y7Ts/4ocGRmTHvOs8PSE6pB3dWOrD/nueuU5sduBsQ4w==
 
+react-native-background-actions@^4.0.1:
+  version "4.0.1"
+  resolved "https://registry.npmjs.org/react-native-background-actions/-/react-native-background-actions-4.0.1.tgz"
+  integrity sha512-LADhnb4ag1oH5Lotq0j8K9e2cFmrafFyg2PCME88VkTjqDUgNcJonkNdMCTHN0N3fh+hwAA7nDR4Cxkj9Q8eCw==
+  dependencies:
+    eventemitter3 "^4.0.7"
+
 react-native-calendar-picker@^8.0.5:
   version "8.0.5"
   resolved "https://registry.npmjs.org/react-native-calendar-picker/-/react-native-calendar-picker-8.0.5.tgz"
@@ -6087,7 +6099,7 @@ react-native-vector-icons@*, react-native-vector-icons@^10.2.0:
     prop-types "^15.7.2"
     yargs "^16.1.1"
 
-react-native@*, "react-native@^0.0.0-0 || >=0.65 <1.0", "react-native@>= 0.30.0", "react-native@>= 0.50.0", "react-native@>= 0.64.3", react-native@>=0.59, react-native@0.74.6:
+react-native@*, "react-native@^0.0.0-0 || >=0.65 <1.0", "react-native@>= 0.30.0", "react-native@>= 0.50.0", "react-native@>= 0.64.3", react-native@>=0.47.0, react-native@>=0.59, react-native@0.74.6:
   version "0.74.6"
   resolved "https://registry.npmjs.org/react-native/-/react-native-0.74.6.tgz"
   integrity sha512-TZ8uLf+dH+nO5nFwjhMd4PqtraeNT5cXQ0ySAhq7qqbTBgalxO3UklsLFW3cTSedC+eLw6J3P3H62e3/MjpWNw==

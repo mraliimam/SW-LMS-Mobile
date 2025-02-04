@@ -11,10 +11,29 @@ interface AttendanceDay {
 interface PieChartAttendanceProps {
   attendanceData: AttendanceDay[];
   onDateRangeChange: (startDate: Date, endDate: Date) => void;
+  isOffline?: boolean;
 }
 
-const AttendanceChart: React.FC<PieChartAttendanceProps> = ({ attendanceData, onDateRangeChange }) => {
+const AttendanceChart: React.FC<PieChartAttendanceProps> = ({ 
+  attendanceData, 
+  onDateRangeChange,
+  isOffline = false 
+}) => {
   const screenWidth = Dimensions.get('window').width;
+
+  if (!attendanceData || attendanceData.length === 0) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>Attendance History</Text>
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>No attendance data available</Text>
+          {isOffline && (
+            <Text style={styles.offlineText}>You are currently offline</Text>
+          )}
+        </View>
+      </View>
+    );
+  }
 
   const presentDays = attendanceData.filter(day => day.status === 'present').length;
   const lateDays = attendanceData.filter(day => day.status === 'late').length;
@@ -59,7 +78,7 @@ const AttendanceChart: React.FC<PieChartAttendanceProps> = ({ attendanceData, on
       legendFontColor: '#7F7F7F',
       legendFontSize: 12,
     },
-  ];
+  ].filter(item => item.population > 0);
 
   const chartConfig = {
     backgroundGradientFrom: '#ffffff',
@@ -67,14 +86,18 @@ const AttendanceChart: React.FC<PieChartAttendanceProps> = ({ attendanceData, on
     color: (opacity = 1) => `rgba(91, 77, 188, ${opacity})`,
   };
 
-  const attendancePercentage = (
-    ((presentDays + lateDays * 0.5 + excusedDays * 0.75) / 
-    (totalDays - holidayDays) * 100)
-  ).toFixed(1);
+  const attendancePercentage = totalDays - holidayDays > 0
+    ? (((presentDays + lateDays * 0.5 + excusedDays * 0.75) / 
+       (totalDays - holidayDays) * 100)
+      ).toFixed(1)
+    : '0.0';
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Attendance History</Text>
+      <Text style={styles.title}>
+        Attendance History
+        {isOffline && <Text style={styles.offlineIndicator}> (Offline)</Text>}
+      </Text>
       <PieChart
         data={chartData}
         width={screenWidth - 32}
@@ -88,12 +111,24 @@ const AttendanceChart: React.FC<PieChartAttendanceProps> = ({ attendanceData, on
       <View style={styles.summary}>
         <Text style={styles.summaryTitle}>Summary:</Text>
         <Text style={styles.summaryText}>Total Days: {totalDays}</Text>
-        <Text style={styles.summaryText}>Present: {presentDays} days</Text>
-        <Text style={styles.summaryText}>Late: {lateDays} days</Text>
-        <Text style={styles.summaryText}>Absent: {absentDays} days</Text>
-        <Text style={styles.summaryText}>Holiday: {holidayDays} days</Text>
-        <Text style={styles.summaryText}>Excused: {excusedDays} days</Text>
-        <Text style={styles.summaryText}>Attendance: {attendancePercentage}%</Text>
+        {presentDays > 0 && (
+          <Text style={styles.summaryText}>Present: {presentDays} days</Text>
+        )}
+        {lateDays > 0 && (
+          <Text style={styles.summaryText}>Late: {lateDays} days</Text>
+        )}
+        {absentDays > 0 && (
+          <Text style={styles.summaryText}>Absent: {absentDays} days</Text>
+        )}
+        {holidayDays > 0 && (
+          <Text style={styles.summaryText}>Holiday: {holidayDays} days</Text>
+        )}
+        {excusedDays > 0 && (
+          <Text style={styles.summaryText}>Excused: {excusedDays} days</Text>
+        )}
+        <Text style={styles.attendanceText}>
+          Attendance: {attendancePercentage}%
+        </Text>
       </View>
     </View>
   );
@@ -131,6 +166,32 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     marginBottom: 2,
+  },
+  attendanceText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#5B4DBC',
+    marginTop: 8,
+  },
+  emptyContainer: {
+    height: 220,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+  },
+  offlineText: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 8,
+  },
+  offlineIndicator: {
+    fontSize: 12,
+    color: '#999',
+    fontStyle: 'italic',
   },
 });
 

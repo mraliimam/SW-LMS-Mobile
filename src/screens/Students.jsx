@@ -9,14 +9,13 @@ import {
   Dimensions,
   Image,
   RefreshControl,
-  Platform
 } from 'react-native'
+import NetInfo from '@react-native-community/netinfo';
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { SharedElement } from 'react-navigation-shared-element'
 import { getStudents, getAttendance } from '../api/Signup'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import PencilLoader from '../components/UI/PencilLoader'
-// import Icon from 'react-native-vector-icons/Ionicons'
 import CustomDropdown from '../components/CustomDropdown'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { format } from 'date-fns'
@@ -24,13 +23,12 @@ import { format } from 'date-fns'
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 
 const CACHE_KEY = 'STUDENTS_DATA'
-const CACHE_EXPIRY = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
-
+const TEACHERS_CACHE_KEY = 'TEACHERS_DATA'
+const CACHE_EXPIRY = 24 * 60 * 60 * 1000
 const StudentItem = memo(({ item, onPress }) => (
   <TouchableOpacity
     style={styles.studentItem}
-    onPress={() => onPress(item)}
-  >
+    onPress={() => onPress(item)}>
     <SharedElement id={`student.${item.student_id}.avatar`}>
       <View style={styles.avatarContainer}>
         <Text style={styles.avatarText}>{item.name[0]}</Text>
@@ -61,6 +59,7 @@ const Students = () => {
   const [username, setUsername] = useState('');
   const [attendanceData, setAttendanceData] = useState([]);
   const [teachersData, setTeachersData] = useState([]);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
   useEffect(() => {
     fetchUsername();
@@ -106,66 +105,126 @@ const Students = () => {
 
   const fetchTeachersData = useCallback(async () => {
     try {
-      const response = await getAttendance({ 
-        username: await AsyncStorage.getItem('username'), 
-        dateFor: format(new Date(), 'yyyy-MM-dd') 
-      });
-      if (response && response.Classes) {
-        setTeachersData(response.Classes);
-      }
-    } catch (error) {
-      console.error('Error fetching teachers data:', error);
-    }
-  }, []);
+      const netInfo = await NetInfo.fetch();
+      let teachersData;
 
-  const fetchStudents = useCallback(async (forceRefresh = false) => {
-    setIsLoading(true)
-    setError(null)
-    try {
-      let studentsData = null
-      if (!forceRefresh) {
-        const cachedData = await AsyncStorage.getItem(CACHE_KEY)
+      if (netInfo.isConnected) {
+        const response = await getAttendance({ 
+          username: await AsyncStorage.getItem('username'), 
+          dateFor: format(new Date(), 'yyyy-MM-dd') 
+        });
+        
+        if (response && response.Classes) {
+          teachersData = response.Classes;
+          await AsyncStorage.setItem(TEACHERS_CACHE_KEY, JSON.stringify({
+            data: teachersData,
+            timestamp: Date.now()
+          }));
+        }
+      } else {
+        const cachedData = await AsyncStorage.getItem(TEACHERS_CACHE_KEY);
         if (cachedData) {
-          const { data, timestamp } = JSON.parse(cachedData)
+          const { data, timestamp } = JSON.parse(cachedData);
           if (Date.now() - timestamp < CACHE_EXPIRY) {
-            studentsData = data
+            teachersData = data;
           }
         }
       }
 
-      if (!studentsData) {
-        const storedUsername = await AsyncStorage.getItem('username')
-        const response = await getStudents(storedUsername || '')
+      if (teachersData) {
+        console.log('Setting teachers data:', teachersData);
+        setTeachersData(teachersData);
+      }
+    } catch (error) {
+      console.error('Error fetching teachers data:', error);
+      try {
+        const cachedData = await AsyncStorage.getItem(TEACHERS_CACHE_KEY);
+        if (cachedData) {
+          const { data } = JSON.parse(cachedData);
+          console.log('Setting cached teachers data:', data);
+          setTeachersData(data);
+        }
+      } catch (cacheError) {
+        console.error('Error reading cached teachers data:', cacheError);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchTeachersData();
+  }, [fetchTeachersData]);
+
+  const fetchStudents = useCallback(async (forceRefresh = false) => {
+    if (!initialLoadComplete) {
+      setIsLoading(true);
+    }
+
+    let hasCachedData = false;
+    try {
+      const cachedData = await AsyncStorage.getItem(CACHE_KEY);
+      if (cachedData) {
+        const { data, timestamp } = JSON.parse(cachedData);
+        if (Date.now() - timestamp < CACHE_EXPIRY) {
+          setStudents(data);
+          const uniqueClasses = [...new Set(data.map(student => student.current_class))];
+          setClasses(uniqueClasses);
+          setSelectedClass(prevClass => prevClass || uniqueClasses[0]);
+          setFilteredStudents(data.filter(student => 
+            student.current_class === (selectedClass || uniqueClasses[0])
+          ));
+          hasCachedData = true;
+          setIsLoading(false);
+        }
+      }
+    } catch (cacheError) {
+      console.error('Error reading cached data:', cacheError);
+    }
+
+    try {
+      const netInfo = await NetInfo.fetch();
+      
+      if (netInfo.isConnected) {
+        const storedUsername = await AsyncStorage.getItem('username');
+        const response = await getStudents(storedUsername || '');
+        
         if (response && response.Records) {
-          studentsData = response.Records
+          const studentsData = response.Records;
           await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({
             data: studentsData,
             timestamp: Date.now()
-          }))
-        } else {
-          throw new Error('Invalid response format')
+          }));
+          
+          setStudents(studentsData);
+          const uniqueClasses = [...new Set(studentsData.map(student => student.current_class))];
+          setClasses(uniqueClasses);
+          setSelectedClass(prevClass => prevClass || uniqueClasses[0]);
+          setFilteredStudents(studentsData.filter(student => 
+            student.current_class === (selectedClass || uniqueClasses[0])
+          ));
+          setError(null);
         }
+      } else if (!hasCachedData) {
+        setError('No internet connection available');
       }
-
-      setStudents(studentsData)
-      const uniqueClasses = [...new Set(studentsData.map(student => student.current_class))]
-      setClasses(uniqueClasses)
-      setSelectedClass(uniqueClasses[0] || '')
-      setFilteredStudents(studentsData.filter(student => student.current_class === uniqueClasses[0]))
     } catch (error) {
-      console.error('Error fetching students:', error)
-      setError('Failed to load students. Please try again.')
+      console.error('Error fetching students:', error);
+      if (!hasCachedData) {
+        setError('Failed to load students. Please check your internet connection.');
+      }
     } finally {
-      setIsLoading(false)
-      setRefreshing(false)
+      setIsLoading(false);
+      setRefreshing(false);
+      setInitialLoadComplete(true);
     }
-  }, [])
+  }, [selectedClass, initialLoadComplete]);
 
   useFocusEffect(
     useCallback(() => {
       fetchStudents();
-      fetchTeachersData();
-    }, [fetchStudents, fetchTeachersData])
+      return () => {
+        // Cleanup if needed
+      };
+    }, [fetchStudents])
   )
 
   useEffect(() => {
@@ -191,7 +250,7 @@ const Students = () => {
 
   const handleClassChange = useCallback((itemValue) => {
     setSelectedClass(itemValue)
-    setSearchQuery('') // Clear search query when changing class
+    setSearchQuery('')
   }, [])
 
   const onRefresh = useCallback(() => {
@@ -199,17 +258,27 @@ const Students = () => {
     fetchStudents(true)
   }, [fetchStudents])
 
-  if (error) {
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener(state => {
+      if (state.isConnected) {
+        fetchStudents(true);
+        fetchTeachersData();
+      }
+    });
+    return () => unsubscribe();
+  }, [fetchStudents, fetchTeachersData]);
+
+  if (isLoading && !initialLoadComplete) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={() => fetchStudents(true)}>
-          <Text style={styles.retryButtonText}>Retry</Text>
-        </TouchableOpacity>
-      </View>
-    )
+      <SafeAreaView style={styles.container}>
+        <View style={styles.centerContainer}>
+          <PencilLoader size={100} color="#5B4DBC" />
+        </View>
+      </SafeAreaView>
+    );
   }
 
+  
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -231,6 +300,7 @@ const Students = () => {
         <CustomDropdown
           data={classes.map((className) => {
             const classData = teachersData.find(c => c.class_name === className);
+            console.log('Class data for', className, ':', classData);
             return {
               label: className,
               value: className,

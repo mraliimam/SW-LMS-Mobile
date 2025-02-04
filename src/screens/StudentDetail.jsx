@@ -2,15 +2,15 @@ import React, { useCallback, useState, useEffect } from 'react'
 import { View, Text, StyleSheet,Image, TouchableOpacity, Animated, Platform } from 'react-native'
 import { useRoute, useNavigation } from '@react-navigation/native'
 import { SharedElement } from 'react-navigation-shared-element'
-import Icon from 'react-native-vector-icons/Ionicons'
 import AttendanceChart from '../components/AttendanceChart'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { getStudentAttendance } from '../api/Signup'
-import { Button } from 'react-native'
 import { DatePickerModal } from 'react-native-paper-dates'
 import { Provider as PaperProvider } from 'react-native-paper'
 import { registerTranslation } from 'react-native-paper-dates'
 import PencilLoader from '../components/UI/PencilLoader'
+import NetInfo from '@react-native-community/netinfo'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 
 registerTranslation('en', {
   save: 'Save',
@@ -30,6 +30,10 @@ registerTranslation('en', {
   pickDateFromCalendar: 'Pick date from calendar',
   close: 'Close',
 })
+
+const ATTENDANCE_CACHE_KEY = 'STUDENT_ATTENDANCE_'
+const CACHE_EXPIRY = 24 * 60 * 60 * 1000 // 24 hours
+
 const StudentDetail = () => {
   const route = useRoute()
   const navigation = useNavigation()
@@ -79,12 +83,35 @@ const StudentDetail = () => {
     }
 
     try {
-      console.log('data:>',data)
-      const response = await getStudentAttendance(data)
-      // console.log('imp response :>',response)
-      if (response.Student_Attendance) {
-        // Updated status mapping to include H and E
-        const formattedData = response.Student_Attendance.map(item => ({
+      // Check network connectivity
+      const netInfo = await NetInfo.fetch()
+      let attendanceData
+      const cacheKey = `${ATTENDANCE_CACHE_KEY}${student.student_id}_${data.dateFrom}_${data.dateTo}`
+
+      if (netInfo.isConnected) {
+        // If online, fetch from API
+        const response = await getStudentAttendance(data)
+        if (response.Student_Attendance) {
+          attendanceData = response.Student_Attendance
+          // Cache the attendance data
+          await AsyncStorage.setItem(cacheKey, JSON.stringify({
+            data: attendanceData,
+            timestamp: Date.now()
+          }))
+        }
+      } else {
+        // If offline, try to get cached data
+        const cachedData = await AsyncStorage.getItem(cacheKey)
+        if (cachedData) {
+          const { data: cachedAttendance, timestamp } = JSON.parse(cachedData)
+          if (Date.now() - timestamp < CACHE_EXPIRY) {
+            attendanceData = cachedAttendance
+          }
+        }
+      }
+
+      if (attendanceData) {
+        const formattedData = attendanceData.map(item => ({
           date: item.date_added,
           status: item.status === 'P' ? 'present' : 
                  item.status === 'A' ? 'absent' : 
@@ -94,13 +121,53 @@ const StudentDetail = () => {
                  item.status === 'E' ? 'excused' : 'absent'
         }))
         setAttendanceData(formattedData)
+      } else {
+        // If no data available (online or cached), show empty state
+        setAttendanceData([])
       }
     } catch (error) {
       console.error('Error fetching attendance:', error)
+      // Try to get cached data as fallback
+      try {
+        const cacheKey = `${ATTENDANCE_CACHE_KEY}${student.student_id}_${data.dateFrom}_${data.dateTo}`
+        const cachedData = await AsyncStorage.getItem(cacheKey)
+        if (cachedData) {
+          const { data: cachedAttendance } = JSON.parse(cachedData)
+          const formattedData = cachedAttendance.map(item => ({
+            date: item.date_added,
+            status: item.status === 'P' ? 'present' : 
+                   item.status === 'A' ? 'absent' : 
+                   item.status === 'L' ? 'late' : 
+                   item.status === 'X' ? 'holiday' :
+                   item.status === 'H' ? 'holiday' :
+                   item.status === 'E' ? 'excused' : 'absent'
+          }))
+          setAttendanceData(formattedData)
+        }
+      } catch (cacheError) {
+        console.error('Error reading cached attendance data:', cacheError)
+        setAttendanceData([])
+      }
     } finally {
       setLoading(false)
     }
   }
+
+  // Add network status effect
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener(state => {
+      if (state.isConnected) {
+        // When connection is restored, refresh the attendance data
+        if (dateRange === 'custom' && range.startDate && range.endDate) {
+          fetchAttendanceData(0, range.startDate, range.endDate)
+        } else {
+          fetchAttendanceData(dateRange === '7' ? 7 : 30)
+        }
+      }
+    })
+
+    return () => unsubscribe()
+  }, [dateRange, range])
 
   useEffect(() => {
     if (dateRange === 'custom' && range.startDate && range.endDate) {
@@ -247,9 +314,9 @@ const StudentDetail = () => {
           <View style={styles.chartContainer}>
             {renderDateFilters()}
             {loading ? (
-                         <View style={styles.centerContainer}>
-                         <PencilLoader size={200} color="#5B4DBC" />
-                       </View>   ) : (
+             <View style={styles.centerContainer}>
+             <PencilLoader size={200} color="#5B4DBC" />
+             </View>   ) : (
 
               <AttendanceChart attendanceData={attendanceData} />
             )}

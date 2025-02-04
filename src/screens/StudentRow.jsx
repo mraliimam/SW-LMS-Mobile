@@ -7,6 +7,7 @@ const StudentRow = memo(({ item, attendance, statuses, onAttendanceChange, atten
   return (
     <View style={styles.row}>
       <Text style={[styles.cell, styles.nameCell]}>{item.name}</Text>
+      <Text style={[styles.cell, styles.idcell]}>{item.student_id}</Text>
       {statuses.map(status => (
         <TouchableOpacity
           key={status}
@@ -41,6 +42,11 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   nameCell: {
+    flex: 2,
+    paddingLeft: 16,
+    textAlign: 'left',
+  },
+  idcell: {
     flex: 2,
     paddingLeft: 16,
     textAlign: 'left',

@@ -14,10 +14,7 @@ import {
   ScrollView,
   Platform,
   Keyboard,
-  EmitterSubscription,
 } from 'react-native';
-// import LOGO from 'react-native-vector-icons/FontAwesome';
-// import EYE from 'react-native-vector-icons/Entypo';
 import { Popup } from '../components/UI/Popup';
 import {login} from '../api/Signup';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -115,8 +112,6 @@ export default function SignInScreen({ navigation }) {
           <StatusBar backgroundColor="transparent" translucent />
           <View style={styles.header}>
             <View style={styles.iconContainer}>
-            {/* <LOGO name="graduation-cap" size={50} color="#FF4B75" />
-             */}
              <Image
                 source={require('../assets/image.png')}
                 style={{ width: 100, height: 100, borderRadius:20 }}
@@ -156,12 +151,6 @@ export default function SignInScreen({ navigation }) {
                   placeholderTextColor={'#d6d6d6'}
                 />
                 <TouchableOpacity onPress={togglePasswordVisibility} style={styles.eyeButton}>
-                {/* <EYE 
-                      style={{ opacity: 0.4 }}
-                      name={showPassword ? "eye-with-line" : "eye"}
-                      size={20} 
-                      color="#666666" 
-                    /> */}
                      <Image
                 source={showPassword ? require('../assets/hide.png'):require('../assets/view.png')}
                 style={{ opacity:0.4, width: 20, height: 20 }}

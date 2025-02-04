@@ -18,8 +18,11 @@ import CalendarPicker from 'react-native-calendar-picker';
 import { format } from 'date-fns';
 import { useNavigation } from '@react-navigation/native';
 import CustomDropdown from '../components/CustomDropdown';
+import NetInfo from '@react-native-community/netinfo';
 
 const { width } = Dimensions.get('window');
+const ATTENDANCE_VIEW_CACHE_KEY = 'ATTENDANCE_VIEW_';
+const CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 24 hours
 
 export default function ViewAttendance() {
   const [selectedDate, setSelectedDate] = useState(null);
@@ -53,25 +56,79 @@ export default function ViewAttendance() {
     async (user, date) => {
       setIsLoading(true);
       try {
-        const response = await getAttendance({ username: user, dateFor: date });
-        console.log('response:>',response)
-        if (response && response.Classes) {
-          setAttendanceData(response.Classes);
-          if (response.Classes.length > 0 && !selectedClass) {
-            setSelectedClass(response.Classes[0].class_name.toString());
+        const netInfo = await NetInfo.fetch();
+        let attendanceResult;
+        const cacheKey = `${ATTENDANCE_VIEW_CACHE_KEY}${user}_${date}`;
+
+        if (netInfo.isConnected) {
+          // If online, fetch from API
+          const response = await getAttendance({ username: user, dateFor: date });
+          if (response && response.Classes) {
+            attendanceResult = response.Classes;
+            // Cache the attendance data
+            await AsyncStorage.setItem(cacheKey, JSON.stringify({
+              data: attendanceResult,
+              timestamp: Date.now()
+            }));
+          }
+        } else {
+          // If offline, try to get cached data
+          const cachedData = await AsyncStorage.getItem(cacheKey);
+          if (cachedData) {
+            const { data, timestamp } = JSON.parse(cachedData);
+            if (Date.now() - timestamp < CACHE_EXPIRY) {
+              attendanceResult = data;
+            }
+          }
+        }
+
+        if (attendanceResult) {
+          setAttendanceData(attendanceResult);
+          if (attendanceResult.length > 0 && !selectedClass) {
+            setSelectedClass(attendanceResult[0].class_name.toString());
           }
         } else {
           setAttendanceData([]);
+          if (!netInfo.isConnected) {
+            // Show offline message or handle empty state
+            console.log('No cached data available while offline');
+          }
         }
       } catch (error) {
         console.error('Error fetching attendance:', error);
-        setAttendanceData([]);
+        // Try to get cached data as fallback
+        try {
+          const cacheKey = `${ATTENDANCE_VIEW_CACHE_KEY}${user}_${date}`;
+          const cachedData = await AsyncStorage.getItem(cacheKey);
+          if (cachedData) {
+            const { data } = JSON.parse(cachedData);
+            setAttendanceData(data);
+            if (data.length > 0 && !selectedClass) {
+              setSelectedClass(data[0].class_name.toString());
+            }
+          }
+        } catch (cacheError) {
+          console.error('Error reading cached attendance data:', cacheError);
+          setAttendanceData([]);
+        }
       } finally {
         setIsLoading(false);
       }
     },
     [selectedClass]
   );
+
+  // Add network status effect
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener(state => {
+      if (state.isConnected && username && selectedDate) {
+        // When connection is restored, refresh the data
+        fetchAttendance(username, format(selectedDate, 'yyyy-MM-dd'));
+      }
+    });
+
+    return () => unsubscribe();
+  }, [username, selectedDate, fetchAttendance]);
 
   const handleDateChange = (date) => {
     setSelectedDate(date);
@@ -173,7 +230,13 @@ export default function ViewAttendance() {
                 data={selectedClassData.attendance}
                 renderItem={renderAttendanceItem}
                 keyExtractor={(item) => item.id.toString()}
-                ListEmptyComponent={<Text style={styles.noDataText}>No attendance data for this class.</Text>}
+                ListEmptyComponent={
+                  <Text style={styles.noDataText}>
+                    {!selectedClassData.attendance.length 
+                      ? 'No attendance data for this class.'
+                      : 'You are currently offline. No cached data available.'}
+                  </Text>
+                }
               />
             </>
           ) : (
@@ -207,4 +270,15 @@ const styles = StyleSheet.create({
   statusCell: { flex: 1, alignItems: 'center', marginRight: 16, borderRadius: 15, padding: 5 },
   statusText: { color: '#FFFFFF', fontWeight: 'bold' },
   noDataText: { textAlign: 'center', marginTop: 20, fontSize: 16, color: '#666' },
+});
+
+const newStyles = StyleSheet.create({
+  offlineText: {
+    color: '#666',
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
+  // ... add to existing styles ...
 });

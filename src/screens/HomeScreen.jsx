@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, StatusBar,
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Popup } from '../components/UI/Popup';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getStudents } from '../api/Signup';
+
 
 const images = {
   house: require('../assets/house.png'),
@@ -38,9 +38,8 @@ export default function HomeScreen({ navigation }) {
   useEffect(() => {
     const fetchUsername = async () => {
       const username = await AsyncStorage.getItem('username');
-      const response = await getStudents(username);
       setUsername(username);
-      setLoading(false); // Set loading to false once username is fetched
+      setLoading(false);
       console.log('username:>>', username);
     };
 
