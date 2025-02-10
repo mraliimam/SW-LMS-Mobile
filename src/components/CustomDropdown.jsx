@@ -12,16 +12,16 @@ const CustomDropdown = ({ data, selectedValue, onValueChange, placeholder }) => 
     onValueChange(item);
     setModalVisible(false);
   };
-  const transformLabel = (label) => {
-    const parts = label.split('_'); 
-    if (parts.length === 2) {
-      const prefix = parts[0];
-      const rest = parts[1];
-      const gender = prefix === 'B' ? 'Boys' : prefix === 'G' ? 'Girls' : prefix;
-      return `${gender} ${rest}`;
-    }
-    return label;
-  };
+  // const transformLabel = (label) => {
+  //   const parts = label.split('_'); 
+  //   if (parts.length === 2) {
+  //     const prefix = parts[0];
+  //     const rest = parts[1];
+  //     const gender = prefix === 'B' ? 'Boys' : prefix === 'G' ? 'Girls' : prefix;
+  //     return `${gender} ${rest}`;
+  //   }
+  //   return label;
+  // };
 
   const selectedItem = data.find(item => item.value === selectedValue);
 
@@ -33,7 +33,7 @@ const CustomDropdown = ({ data, selectedValue, onValueChange, placeholder }) => 
         <Text style={styles.dropdownButtonText}>
           {selectedValue ? (
             <>
-              {transformLabel(selectedValue)}
+              {(selectedValue)}
               {selectedItem?.teacher && (
                 <Text style={styles.teacherText}>{` (${selectedItem.teacher})`}</Text>
               )}
@@ -68,7 +68,7 @@ const CustomDropdown = ({ data, selectedValue, onValueChange, placeholder }) => 
                 >
                   <View style={styles.itemContent}>
                     <Text style={styles.itemText}>
-                      {transformLabel(item.label)}
+                      {(item.label)}
                     </Text>
                     {item.teacher && (
                       <Text style={styles.teacherText}>
