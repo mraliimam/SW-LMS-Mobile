@@ -1,6 +1,6 @@
 import { API_URL } from '@env';
 export  async function login(username, password) {
-  console.log(username, password);
+
   try {
     const response = await fetch(`${API_URL}/login`, {
       method: 'POST',
@@ -9,7 +9,7 @@ export  async function login(username, password) {
       },
       body: JSON.stringify({ username, password }),  // Use "username" instead of "email"
     });
-    console.log(JSON.stringify(response))
+    // console.log(JSON.stringify(response))
     return response.json();
   } catch (error) {
     console.error('Network or server error:', error.message);
@@ -17,7 +17,7 @@ export  async function login(username, password) {
   }
 }
 export async function getStudents(username) {
-  console.log('for getstudents:>',username)
+  // console.log('for getstudents:>',username)
     try {
       const response = await fetch(`${API_URL}/getStudents`, {
         method: 'POST',
@@ -45,7 +45,7 @@ export async function addAttendance(data) {
         body: JSON.stringify(data ),
       });
       const data1 = await response.json();
-      console.log('response:>>',data1)
+      // console.log('response:>>',data1)
       return data1;
     } catch (error) {
       console.error('Network or server error:', error.message);
@@ -53,6 +53,7 @@ export async function addAttendance(data) {
     }
   }
 export async function getAttendance(data) {
+  console.log('data:>>',data)
     try {
       const response = await fetch(`${API_URL}/getAttendance`, {
         method: 'POST',

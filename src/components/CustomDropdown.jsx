@@ -5,8 +5,8 @@ import { View, Text, TouchableOpacity, Modal, FlatList, StyleSheet } from 'react
 const CustomDropdown = ({ data, selectedValue, onValueChange, placeholder }) => {
   const [modalVisible, setModalVisible] = useState(false);
 
-  console.log('CustomDropdown data:', data);
-  console.log('Selected value:', selectedValue);
+  // console.log('CustomDropdown data:', data);
+  // console.log('Selected value:', selectedValue);
 
   const handleSelect = (item) => {
     onValueChange(item);

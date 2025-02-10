@@ -68,7 +68,7 @@ export default function SignInScreen({ navigation }) {
     setIsLoading(true);
     try {
       const response = await login(username, password);
-      console.log('the response:>>', JSON.stringify(response))
+      // console.log('the response:>>', JSON.stringify(response))
       if(response.success || response.Message) {
         await AsyncStorage.setItem('username', username);
         navigation.reset({

@@ -1,11 +1,12 @@
 import React, { memo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
-const StudentRow = memo(({ item, attendance, statuses, onAttendanceChange, attendanceTaken }) => {
+const StudentRow = memo(({ item, attendance, statuses, onAttendanceChange, attendanceTaken,index }) => {
   const studentAttendance = attendance[item.student_id];
 
   return (
     <View style={styles.row}>
+      <Text style={[styles.cell, styles.SrCell]}>{index}</Text>
       <Text style={[styles.cell, styles.nameCell]}>{item.name}</Text>
       <Text style={[styles.cell, styles.idcell]}>{item.student_id}</Text>
       {statuses.map(status => (
@@ -15,8 +16,7 @@ const StudentRow = memo(({ item, attendance, statuses, onAttendanceChange, atten
             styles.radioContainer,
             attendanceTaken && styles.radioContainerTaken
           ]}
-          onPress={() => onAttendanceChange(item.student_id, status)}
-        >
+          onPress={() => onAttendanceChange(item.student_id, status)}>
           <View
             style={[
               styles.radio,
@@ -43,6 +43,11 @@ const styles = StyleSheet.create({
   },
   nameCell: {
     flex: 2,
+    paddingLeft: 16,
+    textAlign: 'left',
+  },
+  SrCell: {
+    flex: 1,
     paddingLeft: 16,
     textAlign: 'left',
   },

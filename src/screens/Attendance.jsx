@@ -1,4 +1,6 @@
-import React, {useMemo, useState, useEffect, useCallback } from 'react';
+"use client"
+
+import { useMemo, useState, useEffect, useCallback } from "react"
 import {
   View,
   Text,
@@ -8,388 +10,339 @@ import {
   FlatList,
   Platform,
   TouchableOpacity,
-  Image
-} from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Button } from 'react-native-paper';
-import { getStudents, addAttendance, getAttendance } from '../api/Signup';
-import { Popup } from '../components/UI/Popup';
-import PencilLoader from '../components/UI/PencilLoader';
-import StudentRow from './StudentRow';
-import CustomDropdown from '../components/CustomDropdown';
-import NetInfo from '@react-native-community/netinfo';
+  Image,
+} from "react-native"
+import { useNavigation } from "@react-navigation/native"
+import AsyncStorage from "@react-native-async-storage/async-storage"
+import { Button } from "react-native-paper"
+import { getStudents, getAttendance } from "../api/Signup"
+import { Popup } from "../components/UI/Popup"
+import PencilLoader from "../components/UI/PencilLoader"
+import StudentRow from "./StudentRow"
+import CustomDropdown from "../components/CustomDropdown"
+import NetInfo from "@react-native-community/netinfo"
+import AttendanceManager from "../services/AttendanceManager"
 
-const ATTENDANCE_QUEUE_KEY = 'ATTENDANCE_QUEUE';
-const OFFLINE_ATTENDANCE_KEY = 'OFFLINE_ATTENDANCE_';
+const OFFLINE_ATTENDANCE_KEY = "OFFLINE_ATTENDANCE_"
 
 const Attendance = () => {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [selectedClass, setSelectedClass] = useState('');
-  const [students, setStudents] = useState([]);
-  const [attendance, setAttendance] = useState({});
-  const [username, setUsername] = useState('');
-  const navigation = useNavigation();
-  const [popupVisible, setPopupVisible] = useState(false);
-  const [Class_id, setClass_id] = useState('');
-  const [popupMessage, setPopupMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [classes, setClasses] = useState([]);
-  const [attendanceTaken, setAttendanceTaken] = useState(false);
-  const statuses = ['P', 'A', 'X', 'L/E'];
-  const filteredStudents = useMemo(() => 
-    students.filter(student => student.current_class === selectedClass),
-    [selectedClass, students]
-  );
-  const [teachersData, setTeachersData] = useState([]);
-  const [isOffline, setIsOffline] = useState(false);
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+  const [selectedClass, setSelectedClass] = useState("")
+  const [students, setStudents] = useState([])
+  const [attendance, setAttendance] = useState({})
+  const [username, setUsername] = useState("")
+  const navigation = useNavigation()
+  const [popupVisible, setPopupVisible] = useState(false)
+  const [popupMessage, setPopupMessage] = useState("")
+  const [isLoading, setIsLoading] = useState(true)
+  const [classes, setClasses] = useState([])
+  const [attendanceTaken, setAttendanceTaken] = useState(false)
+  const statuses = ["P", "A", "X", "L/E"]
+  const filteredStudents = useMemo(
+    () => students.filter((student) => student.current_class === selectedClass),
+    [selectedClass, students],
+  )
+  const [teachersData, setTeachersData] = useState([])
+  const [isOffline, setIsOffline] = useState(false)
 
   const showPopup = useCallback((message) => {
-    setPopupMessage(message);
-    setPopupVisible(true);
-  }, []);
+    setPopupMessage(message)
+    setPopupVisible(true)
+  }, [])
 
-useEffect(() => {
-  const Getusername = async()=>{
-    const storedUsername = await AsyncStorage.getItem('username');
-    setUsername(storedUsername);
-    fetchStudents();
-  }
-  Getusername()
-},[fetchStudents])
-
+  useEffect(() => {
+    const Getusername = async () => {
+      const storedUsername = await AsyncStorage.getItem("username")
+      setUsername(storedUsername)
+      fetchStudents()
+    }
+    Getusername()
+  }, [fetchStudents])
 
   const handleAttendanceChange = useCallback((studentId, status) => {
-    setAttendance(prev => ({
+    setAttendance((prev) => ({
       ...prev,
-      [studentId]: status === 'L/E' ? 'E' : status,
-    }));
-  }, []);
+      [studentId]: status === "L/E" ? "E" : status,
+    }))
+  }, [])
 
   const fetchStudents = useCallback(async () => {
-    setIsLoading(true);
+    setIsLoading(true)
     try {
-      const storedUsername = await AsyncStorage.getItem('username');
-      setUsername(storedUsername);
-      
+      const storedUsername = await AsyncStorage.getItem("username")
+      setUsername(storedUsername)
+
       // Try to get cached data first
-      const cachedStudents = await AsyncStorage.getItem('CACHED_STUDENTS');
-      const cachedTeachers = await AsyncStorage.getItem('CACHED_TEACHERS');
-      let studentsData = [];
-      
+      const cachedStudents = await AsyncStorage.getItem("CACHED_STUDENTS")
+      const cachedTeachers = await AsyncStorage.getItem("CACHED_TEACHERS")
+      let studentsData = []
+
       if (cachedStudents && cachedTeachers) {
-        const { data: studentData, timestamp: studentTimestamp } = JSON.parse(cachedStudents);
-        const { data: teacherData, timestamp: teacherTimestamp } = JSON.parse(cachedTeachers);
-        
-        if (Date.now() - studentTimestamp < 24 * 60 * 60 * 1000) { // 24 hours cache
-          studentsData = studentData;
-          setStudents(studentData);
-          setTeachersData(teacherData);
-          const uniqueClasses = [...new Set(studentData.map(student => student.current_class))];
-          setClasses(uniqueClasses);
-          const initialClass = uniqueClasses[0];
-          setSelectedClass(initialClass);
-          
+        const { data: studentData, timestamp: studentTimestamp } = JSON.parse(cachedStudents)
+        const { data: teacherData, timestamp: teacherTimestamp } = JSON.parse(cachedTeachers)
+
+        if (Date.now() - studentTimestamp < 24 * 60 * 60 * 1000) {
+          // 24 hours cache
+          studentsData = studentData
+          setStudents(studentData)
+          setTeachersData(teacherData)
+          const uniqueClasses = [...new Set(studentData.map((student) => student.current_class))]
+          setClasses(uniqueClasses)
+          const initialClass = uniqueClasses[0]
+          setSelectedClass(initialClass)
+
           // Fetch attendance for initial class
-          await fetchAttendanceForClass(initialClass, storedUsername);
+          await fetchAttendanceForClass(initialClass, storedUsername)
         }
       }
 
-      const netInfo = await NetInfo.fetch();
+      const netInfo = await NetInfo.fetch()
       if (netInfo.isConnected) {
         // Fetch fresh students data
-        const studentsResponse = await getStudents(storedUsername);
+        const studentsResponse = await getStudents(storedUsername)
         if (studentsResponse && studentsResponse.Records) {
-          studentsData = studentsResponse.Records;
+          studentsData = studentsResponse.Records
           // Cache the students data
-          await AsyncStorage.setItem('CACHED_STUDENTS', JSON.stringify({
-            data: studentsResponse.Records,
-            timestamp: Date.now()
-          }));
+          await AsyncStorage.setItem(
+            "CACHED_STUDENTS",
+            JSON.stringify({
+              data: studentsResponse.Records,
+              timestamp: Date.now(),
+            }),
+          )
 
-          setStudents(studentsResponse.Records);
-          const uniqueClasses = [...new Set(studentsResponse.Records.map(student => student.current_class))];
-          setClasses(uniqueClasses);
-          
+          setStudents(studentsResponse.Records)
+          const uniqueClasses = [...new Set(studentsResponse.Records.map((student) => student.current_class))]
+          setClasses(uniqueClasses)
+
           // Only set initial class if not already set
           if (!selectedClass) {
-            const initialClass = uniqueClasses[0];
-            setSelectedClass(initialClass);
+            const initialClass = uniqueClasses[0]
+            setSelectedClass(initialClass)
             // Fetch attendance for the initial class if not already fetched
-            await fetchAttendanceForClass(initialClass, storedUsername);
+            await fetchAttendanceForClass(initialClass, storedUsername)
           }
         }
 
         // Fetch and cache teachers data
         const attendanceResponse = await getAttendance({
           username: storedUsername,
-          dateFor: new Date().toISOString().split('T')[0]
-        });
+          dateFor: new Date().toISOString().split("T")[0],
+        })
 
         if (attendanceResponse && attendanceResponse.Classes) {
-          setTeachersData(attendanceResponse.Classes);
+          setTeachersData(attendanceResponse.Classes)
           // Cache the teachers data
-          await AsyncStorage.setItem('CACHED_TEACHERS', JSON.stringify({
-            data: attendanceResponse.Classes,
-            timestamp: Date.now()
-          }));
+          await AsyncStorage.setItem(
+            "CACHED_TEACHERS",
+            JSON.stringify({
+              data: attendanceResponse.Classes,
+              timestamp: Date.now(),
+            }),
+          )
         }
       } else {
         // If offline, use cached teachers data
-        const cachedTeachers = await AsyncStorage.getItem('CACHED_TEACHERS');
+        const cachedTeachers = await AsyncStorage.getItem("CACHED_TEACHERS")
         if (cachedTeachers) {
-          const { data } = JSON.parse(cachedTeachers);
-          setTeachersData(data);
+          const { data } = JSON.parse(cachedTeachers)
+          setTeachersData(data)
         }
       }
     } catch (error) {
-      console.error('Error fetching data:', error);
-      setError('Failed to fetch data. Please try again.');
+      console.error("Error fetching data:", error)
+      setError("Failed to fetch data. Please try again.")
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [selectedClass, fetchAttendanceForClass]);
-  
-  // Add useEffect to fetch attendance when selectedClass changes
+  }, [])
+
   useEffect(() => {
     if (selectedClass) {
-      fetchAttendanceForClass(selectedClass, username);
+      fetchAttendanceForClass(selectedClass, username)
     }
-  }, [selectedClass, fetchAttendanceForClass, username]);
+  }, [selectedClass, fetchAttendanceForClass, username])
 
   const fetchAttendanceForClass = async (classname, username) => {
-    const currentDate = new Date().toISOString().split('T')[0];
-    let attendanceData = {};
-    let hasAttendance = false;
-    
+    const currentDate = new Date().toISOString().split("T")[0]
+    let attendanceData = {}
+    let hasAttendance = false
+
     // Try online first if connected
-    const netInfo = await NetInfo.fetch();
+    const netInfo = await NetInfo.fetch()
     if (netInfo.isConnected) {
       try {
         const response = await getAttendance({
           username: username,
-          dateFor: currentDate
-        });
+          dateFor: currentDate,
+        })
 
         if (response && response.Classes) {
-          const classData = response.Classes.find(c => c.class_name === classname);
+          const classData = response.Classes.find((c) => c.class_name === classname)
           if (classData && classData.attendance && classData.attendance.length > 0) {
             attendanceData = classData.attendance.reduce((acc, item) => {
-              acc[item.student_id] = item.status;
-              return acc;
-            }, {});
-            hasAttendance = true;
-            
+              acc[item.student_id] = item.status
+              return acc
+            }, {})
+            hasAttendance = true
+
             // Cache online attendance data for offline use
-            const offlineKey = `${OFFLINE_ATTENDANCE_KEY}${classname}_${currentDate}`;
-            await AsyncStorage.setItem(offlineKey, JSON.stringify({
-              attendance: classData.attendance,
-              timestamp: Date.now(),
-              isOnlineData: true
-            }));
+            const offlineKey = `${OFFLINE_ATTENDANCE_KEY}${classname}_${currentDate}`
+            await AsyncStorage.setItem(
+              offlineKey,
+              JSON.stringify({
+                attendance: classData.attendance,
+                timestamp: Date.now(),
+                isOnlineData: true,
+              }),
+            )
           }
         }
       } catch (error) {
-        console.error('Error fetching online attendance:', error);
+        console.error("Error fetching online attendance:", error)
       }
     }
 
     // Check offline storage if no online data found
     if (!hasAttendance) {
-      const offlineKey = `${OFFLINE_ATTENDANCE_KEY}${classname}_${currentDate}`;
-      const offlineData = await AsyncStorage.getItem(offlineKey);
-      
+      const offlineKey = `${OFFLINE_ATTENDANCE_KEY}${classname}_${currentDate}`
+      const offlineData = await AsyncStorage.getItem(offlineKey)
+
       if (offlineData) {
-        const parsedData = JSON.parse(offlineData);
+        const parsedData = JSON.parse(offlineData)
         // Only use offline data if it was created offline or if we're offline
         if (!parsedData.isOnlineData || !netInfo.isConnected) {
           attendanceData = parsedData.attendance.reduce((acc, item) => {
-            acc[item.student_id] = item.status;
-            return acc;
-          }, {});
-          hasAttendance = true;
+            acc[item.student_id] = item.status
+            return acc
+          }, {})
+          hasAttendance = true
         }
       }
     }
 
-    setAttendance(attendanceData);
-    setAttendanceTaken(hasAttendance);
-  };
+    setAttendance(attendanceData)
+    setAttendanceTaken(hasAttendance)
+  }
 
   const handleSubmit = useCallback(async () => {
     try {
-      const currentDate = new Date().toISOString().split('T')[0];
+      const currentDate = new Date().toISOString().split("T")[0]
       const attendanceData = Object.entries(attendance).map(([studentId, status]) => ({
-        student_id: parseInt(studentId),
+        student_id: Number.parseInt(studentId),
         status,
         date_added: currentDate,
-      }));
+      }))
 
-      const selectedClassId = students.find(student => student.current_class === selectedClass)?.current_class_id;
+      const selectedClassId = students.find((student) => student.current_class === selectedClass)?.current_class_id
       const body = {
         username: username,
         class_id: selectedClassId,
         attendance: attendanceData,
-      };
+      }
 
-      const netInfo = await NetInfo.fetch();
+      const response = await AttendanceManager.submitAttendance(body)
+      if (response.Message) {
+        showPopup(response.Message)
+        setAttendanceTaken(true)
+      }
+    } catch (error) {
+      console.error("Error submitting attendance:", error)
+      setError("Failed to submit attendance. Please try again.")
+    }
+  }, [attendance, username, selectedClass, students, showPopup])
+
+  const renderItem = useCallback(
+    ({ item,index }) => (
+      <StudentRow
+        index={index+1}
+        item={item}
+        attendance={attendance}
+        statuses={statuses}
+        onAttendanceChange={handleAttendanceChange}
+        attendanceTaken={attendanceTaken}
+      />
+    ),
+    [attendance, handleAttendanceChange, attendanceTaken],
+  )
+
+  const keyExtractor = useCallback((item) => item.student_id.toString(), [])
+
+  const handleClassChange = useCallback(
+    async (newClass) => {
+      setSelectedClass(newClass)
+      setAttendance({})
+      setAttendanceTaken(false)
+      const currentDate = new Date().toISOString().split("T")[0]
+
+      // Check for offline attendance for the new class
+      const offlineKey = `${OFFLINE_ATTENDANCE_KEY}${newClass}_${currentDate}`
+      const offlineData = await AsyncStorage.getItem(offlineKey)
+
+      if (offlineData) {
+        const parsedData = JSON.parse(offlineData)
+        const attendanceData = parsedData.attendance.reduce((acc, item) => {
+          acc[item.student_id] = item.status
+          return acc
+        }, {})
+        setAttendance(attendanceData)
+        setAttendanceTaken(true)
+        return
+      }
+
+      // Only fetch online attendance if we don't have offline data
+      const netInfo = await NetInfo.fetch()
       if (netInfo.isConnected) {
-        const response = await addAttendance(body);
-        if (response.Message) {
-          // Cache the successful online submission
-          const offlineKey = `${OFFLINE_ATTENDANCE_KEY}${selectedClass}_${currentDate}`;
-          await AsyncStorage.setItem(offlineKey, JSON.stringify({
-            attendance: attendanceData,
-            timestamp: Date.now(),
-            isOnlineData: true
-          }));
-          
-          showPopup(response.Message);
-          setAttendanceTaken(true);
+        const body = {
+          username,
+          dateFor: currentDate,
         }
-      } else {
-        await addToOfflineQueue(body);
-        // Store offline attendance with flag
-        const offlineKey = `${OFFLINE_ATTENDANCE_KEY}${selectedClass}_${currentDate}`;
-        await AsyncStorage.setItem(offlineKey, JSON.stringify({
-          attendance: attendanceData,
-          timestamp: Date.now(),
-          isOnlineData: false
-        }));
-      }
-    } catch (error) {
-      console.error('Error submitting attendance:', error);
-      setError('Failed to submit attendance. Please try again.');
-    }
-  }, [attendance, username, selectedClass, students, showPopup]);
 
-  const renderItem = useCallback(({ item }) => (
-    <StudentRow
-      item={item}
-      attendance={attendance}
-      statuses={statuses}
-      onAttendanceChange={handleAttendanceChange}
-      attendanceTaken={attendanceTaken}
-    />
-  ), [attendance, handleAttendanceChange, attendanceTaken]);
-
-  const keyExtractor = useCallback((item) => item.student_id.toString(), []);
-
-  const handleClassChange = useCallback(async (newClass) => {
-    setSelectedClass(newClass);
-    setAttendance({});
-    setAttendanceTaken(false);
-    const currentDate = new Date().toISOString().split('T')[0];
-    
-    // Check for offline attendance for the new class
-    const offlineKey = `${OFFLINE_ATTENDANCE_KEY}${newClass}_${currentDate}`;
-    const offlineData = await AsyncStorage.getItem(offlineKey);
-    
-    if (offlineData) {
-      const parsedData = JSON.parse(offlineData);
-      const attendanceData = parsedData.attendance.reduce((acc, item) => {
-        acc[item.student_id] = item.status;
-        return acc;
-      }, {});
-      setAttendance(attendanceData);
-      setAttendanceTaken(true);
-      return;
-    }
-
-    // Only fetch online attendance if we don't have offline data
-    const netInfo = await NetInfo.fetch();
-    if (netInfo.isConnected) {
-      const body = {
-        username,
-        dateFor: currentDate
-      };
-      
-      try {
-        const response = await getAttendance(body);
-        if (response && response.Classes) {
-          const selectedClassData = response.Classes.find(
-            classData => classData.class_name === newClass
-          );
-          
-          if (selectedClassData && selectedClassData.attendance.length > 0) {
-            const attendanceData = selectedClassData.attendance.reduce((acc, item) => {
-              acc[item.student_id] = item.status;
-              return acc;
-            }, {});
-            setAttendance(attendanceData);
-            setAttendanceTaken(true);
-          } else {
-            setAttendanceTaken(false);
-            setAttendance({});
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching attendance:', error);
-        setError('Failed to fetch attendance. Please try again.');
-      }
-    }
-  }, [username]);
-
-  const addToOfflineQueue = async (attendanceData) => {
-    try {
-      const queue = await AsyncStorage.getItem(ATTENDANCE_QUEUE_KEY);
-      const queueArray = queue ? JSON.parse(queue) : [];
-      queueArray.push(attendanceData);
-      await AsyncStorage.setItem(ATTENDANCE_QUEUE_KEY, JSON.stringify(queueArray));
-      
-      // Save the attendance data separately for immediate display
-      const offlineKey = `${OFFLINE_ATTENDANCE_KEY}${selectedClass}_${new Date().toISOString().split('T')[0]}`;
-      await AsyncStorage.setItem(offlineKey, JSON.stringify(attendanceData));
-      
-      showPopup('Attendance saved offline. Will sync when online.');
-      setAttendanceTaken(true);
-    } catch (error) {
-      console.error('Error saving offline attendance:', error);
-      setError('Failed to save offline attendance');
-    }
-  };
-
-  const processOfflineQueue = async () => {
-    try {
-      const queue = await AsyncStorage.getItem(ATTENDANCE_QUEUE_KEY);
-      if (!queue) return;
-
-      const queueArray = JSON.parse(queue);
-      if (queueArray.length === 0) return;
-
-      for (const attendanceData of queueArray) {
         try {
-          const response = await addAttendance(attendanceData);
-          if (response.Message) {
-            // Remove the processed offline attendance data
-            const offlineKey = `${OFFLINE_ATTENDANCE_KEY}${attendanceData.class_id}_${new Date().toISOString().split('T')[0]}`;
-            await AsyncStorage.removeItem(offlineKey);
+          const response = await getAttendance(body)
+          if (response && response.Classes) {
+            const selectedClassData = response.Classes.find((classData) => classData.class_name === newClass)
+
+            if (selectedClassData && selectedClassData.attendance.length > 0) {
+              const attendanceData = selectedClassData.attendance.reduce((acc, item) => {
+                acc[item.student_id] = item.status
+                return acc
+              }, {})
+              setAttendance(attendanceData)
+              setAttendanceTaken(true)
+            } else {
+              setAttendanceTaken(false)
+              setAttendance({})
+            }
           }
         } catch (error) {
-          console.error('Error processing offline attendance:', error);
-          return; // Stop processing on error
+          console.error("Error fetching attendance:", error)
+          setError("Failed to fetch attendance. Please try again.")
         }
       }
-
-      // Clear the queue after successful processing
-      await AsyncStorage.removeItem(ATTENDANCE_QUEUE_KEY);
-      showPopup('Offline attendance synced successfully');
-    } catch (error) {
-      console.error('Error processing offline queue:', error);
-    }
-  };
+    },
+    [username],
+  )
 
   useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener(state => {
-      setIsOffline(!state.isConnected);
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      setIsOffline(!state.isConnected)
       if (state.isConnected) {
-        processOfflineQueue();
+        AttendanceManager.startSync()
+      } else {
+        AttendanceManager.stopSync()
       }
-    });
+    })
 
-    return () => unsubscribe();
-  }, []);
+    // Start sync when component mounts
+    AttendanceManager.startSync()
+
+    return () => {
+      unsubscribe()
+      AttendanceManager.stopSync()
+    }
+  }, [])
 
   if (error) {
     return (
@@ -399,15 +352,18 @@ useEffect(() => {
           Retry
         </Button>
       </View>
-    );
+    )
   }
+
   return (
     <>
       <StatusBar barStyle="light-content" backgroundColor="#5B4DBC" />
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.container}>
           {isOffline && (
-            null
+            <View style={styles.offlineBanner}>
+              <Text style={styles.offlineText}>You are offline. Attendance will be saved locally.</Text>
+            </View>
           )}
           {isLoading ? (
             <View style={styles.loaderContainer}>
@@ -416,21 +372,26 @@ useEffect(() => {
           ) : (
             <>
               <View style={styles.selectContainer}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center',marginBottom: 16 }}>
+                <View
+                  style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", marginBottom: 16 }}
+                >
                   <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                    <Image source={require('../assets/arrow.png')} style={{ width: 24, height: 24, tintColor: 'white' }} />
+                    <Image
+                      source={require("../assets/arrow.png")}
+                      style={{ width: 24, height: 24, tintColor: "white" }}
+                    />
                   </TouchableOpacity>
                   <Text style={styles.label}>Attendance</Text>
                 </View>
                 <View style={styles.pickerContainer}>
                   <CustomDropdown
                     data={classes.map((className) => {
-                      const classData = teachersData.find(c => c.class_name === className);
+                      const classData = teachersData.find((c) => c.class_name === className)
                       return {
                         label: className,
                         value: className,
-                        teacher: classData ? classData.teacher_name : ''
-                      };
+                        teacher: classData ? classData.teacher_name : "",
+                      }
                     })}
                     selectedValue={selectedClass}
                     onValueChange={handleClassChange}
@@ -441,160 +402,156 @@ useEffect(() => {
 
               <View style={styles.tableContainer}>
                 <View style={styles.headerRow}>
+                  <Text style={[styles.headerCell, styles.idCell]}>Sr</Text>
                   <Text style={[styles.headerCell, styles.nameCell]}>Name</Text>
                   <Text style={[styles.headerCell, styles.nameCell]}>ID</Text>
-                  {statuses.map(status => (
+                  {statuses.map((status) => (
                     <Text key={status} style={styles.headerCell}>
                       {status}
                     </Text>
                   ))}
                 </View>
                 <FlatList
-          data={filteredStudents}
-          renderItem={renderItem}
-          keyExtractor={keyExtractor}
-          initialNumToRender={10}
-          maxToRenderPerBatch={10}
-          updateCellsBatchingPeriod={50}
-          windowSize={21}
-          removeClippedSubviews={true}
-          getItemLayout={(data, index) => ({
-            length: 50, 
-            offset: 50 * index,
-            index,
-          })}
-        />
+                  data={filteredStudents}
+                  renderItem={renderItem}
+                  keyExtractor={keyExtractor}
+                  initialNumToRender={10}
+                  maxToRenderPerBatch={10}
+                  updateCellsBatchingPeriod={50}
+                  windowSize={21}
+                  removeClippedSubviews={true}
+                  getItemLayout={(data, index) => ({
+                    length: 50,
+                    offset: 50 * index,
+                    index,
+                  })}
+                />
               </View>
-              <Button 
-                mode="contained" 
-                onPress={handleSubmit}
-                style={styles.submitButton}
-              >
-                Submit Attendance
-              </Button>
+              <TouchableOpacity onPress={handleSubmit} style={styles.submitButton}>
+                <Text style={{color:"white"}}>{attendanceTaken ? "Attendance Submitted" : "Submit Attendance"}</Text>
+              </TouchableOpacity>
             </>
           )}
-          <Popup
-            visible={popupVisible}
-            onClose={() => setPopupVisible(false)}
-            title="Message"
-          >
+          <Popup visible={popupVisible} onClose={() => setPopupVisible(false)} title="Message">
             <Text>{popupMessage}</Text>
           </Popup>
         </View>
       </SafeAreaView>
     </>
-  );
-};
+  )
+}
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: 'white',
+    backgroundColor: "white",
   },
   container: {
     flex: 1,
-    backgroundColor: 'white',
+    backgroundColor: "white",
     padding: Platform.select({
       ios: 16,
       android: 16,
     }),
   },
   selectContainer: {
-    // marginBottom: 24,
-    // justifyContent: "center",
     marginBottom: 24,
   },
   label: {
-    marginRight:15,
+    marginRight: 15,
     fontSize: 24,
-    fontWeight: '500',
-    color: 'black',
-    textAlign: 'center',
+    fontWeight: "500",
+    color: "black",
+    textAlign: "center",
     marginBottom: 8,
     flex: 1,
   },
   pickerContainer: {
     borderRadius: 8,
-    // padding:8,
-    paddingHorizontal:16,
-    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    backgroundColor: "#fff",
     borderRadius: 30,
-  },
-  picker: {
-    height: 50,
-    width: '100%',
-    color: 'black'
   },
   backButton: {
     width: 40,
     height: 40,
     borderRadius: 100,
-    // justifyContent: 'flex-start',
-    backgroundColor: '#5B4DBC',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#5B4DBC",
+    justifyContent: "center",
+    alignItems: "center",
   },
   tableContainer: {
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#5B4DBC',
-    backgroundColor: '#fff',
+    borderColor: "#5B4DBC",
+    backgroundColor: "#fff",
     marginBottom: 24,
     flex: 1,
   },
   loaderContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   headerRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     borderBottomWidth: 1,
-    borderBottomColor: '#5B4DBC',
+    borderBottomColor: "#5B4DBC",
     paddingVertical: 12,
   },
   headerCell: {
     flex: 1,
-    textAlign: 'center',
-    fontWeight: 'bold',
-    color: '#333',
+    textAlign: "center",
+    fontWeight: "bold",
+    color: "#333",
   },
   nameCell: {
     flex: 2,
     paddingLeft: 16,
-    textAlign: 'left',
+    textAlign: "left",
+  },
+  idCell: {
+    flex: 1,
+    paddingLeft: 16,
+    textAlign: "left",
   },
   submitButton: {
-    backgroundColor: '#5B4DBC',
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    
+    backgroundColor: "#5B4DBC",
     marginTop: 16,
   },
   errorContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: 16,
   },
   errorText: {
     fontSize: 16,
-    color: 'red',
+    color: "red",
     marginBottom: 16,
-    textAlign: 'center',
+    textAlign: "center",
   },
   retryButton: {
-    backgroundColor: '#5B4DBC',
+    backgroundColor: "#5B4DBC",
   },
   offlineBanner: {
-    backgroundColor: '#FFF3CD',
+    backgroundColor: "#FFF3CD",
     padding: 8,
     marginBottom: 16,
     borderRadius: 8,
   },
   offlineText: {
-    color: '#856404',
-    textAlign: 'center',
+    color: "#856404",
+    textAlign: "center",
     fontSize: 12,
   },
-});
+})
 
-export default Attendance;
+export default Attendance
+

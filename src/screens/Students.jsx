@@ -84,7 +84,7 @@ const Students = () => {
       setIsLoading(true);
       try {
         const response = await getAttendance({ username: user, dateFor: date });
-        console.log('response:>',response)
+        // console.log('response:>',response)
         if (response && response.Classes) {
           setAttendanceData(response.Classes);
           if (response.Classes.length > 0 && !selectedClass) {
@@ -132,7 +132,7 @@ const Students = () => {
       }
 
       if (teachersData) {
-        console.log('Setting teachers data:', teachersData);
+        // console.log('Setting teachers data:', teachersData);
         setTeachersData(teachersData);
       }
     } catch (error) {
@@ -141,7 +141,7 @@ const Students = () => {
         const cachedData = await AsyncStorage.getItem(TEACHERS_CACHE_KEY);
         if (cachedData) {
           const { data } = JSON.parse(cachedData);
-          console.log('Setting cached teachers data:', data);
+          // console.log('Setting cached teachers data:', data);
           setTeachersData(data);
         }
       } catch (cacheError) {
@@ -300,7 +300,7 @@ const Students = () => {
         <CustomDropdown
           data={classes.map((className) => {
             const classData = teachersData.find(c => c.class_name === className);
-            console.log('Class data for', className, ':', classData);
+            // console.log('Class data for', className, ':', classData);
             return {
               label: className,
               value: className,

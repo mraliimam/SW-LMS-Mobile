@@ -40,7 +40,6 @@ export default function HomeScreen({ navigation }) {
       const username = await AsyncStorage.getItem('username');
       setUsername(username);
       setLoading(false);
-      console.log('username:>>', username);
     };
 
     fetchUsername();
@@ -49,7 +48,7 @@ export default function HomeScreen({ navigation }) {
   async function logout() {
     try {
       await AsyncStorage.removeItem('username');
-      console.log('User logged out');
+      // console.log('User logged out');
       navigation.reset({
         index: 0,
         routes: [{ name: 'SignIn' }],
