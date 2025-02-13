@@ -160,6 +160,7 @@ export default function ViewAttendance() {
   }
 
   const selectedClassData = attendanceData.find((classData) => classData.class_name.toString() === selectedClass)
+  const sortedAttendance = selectedClassData?.attendance?.sort((a, b) => a.sr_no - b.sr_no) || []
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -220,7 +221,7 @@ export default function ViewAttendance() {
           {selectedClassData ? (
             <>
               <FlatList
-                data={selectedClassData.attendance}
+                data={sortedAttendance}
                 renderItem={renderAttendanceItem}
                 keyExtractor={(item) => item.id.toString()}
                 ListHeaderComponent={() => (

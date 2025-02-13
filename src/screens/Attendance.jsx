@@ -226,7 +226,16 @@ const Attendance = () => {
     setAttendanceTaken(hasAttendance)
   }
 
+  const allAttendanceMarked = useCallback(() => {
+    return filteredStudents.every((student) => attendance[student.student_id])
+  }, [filteredStudents, attendance])
+
   const handleSubmit = useCallback(async () => {
+    if (!allAttendanceMarked()) {
+      showPopup("Please mark attendance for all students before submitting.")
+      return
+    }
+
     try {
       const currentDate = new Date().toISOString().split("T")[0]
       const attendanceData = Object.entries(attendance).map(([studentId, status]) => ({
@@ -251,12 +260,12 @@ const Attendance = () => {
       console.error("Error submitting attendance:", error)
       setError("Failed to submit attendance. Please try again.")
     }
-  }, [attendance, username, selectedClass, students, showPopup])
+  }, [attendance, username, selectedClass, students, showPopup, allAttendanceMarked])
 
   const renderItem = useCallback(
-    ({ item,index }) => (
+    ({ item, index }) => (
       <StudentRow
-        index={index+1}
+        index={index + 1}
         item={item}
         attendance={attendance}
         statuses={statuses}
@@ -334,8 +343,6 @@ const Attendance = () => {
         AttendanceManager.stopSync()
       }
     })
-
-    // Start sync when component mounts
     AttendanceManager.startSync()
 
     return () => {
@@ -343,6 +350,7 @@ const Attendance = () => {
       AttendanceManager.stopSync()
     }
   }, [])
+  const sortedAttendance = filteredStudents?.sort((a, b) => a.sr_no - b.sr_no) || []
 
   if (error) {
     return (
@@ -386,7 +394,9 @@ const Attendance = () => {
                 <View style={styles.pickerContainer}>
                   <CustomDropdown
                     data={classes.map((className) => {
+                      console.log('in teacher:>>',teachersData[0].class_name)
                       const classData = teachersData.find((c) => c.class_name === className)
+                      console.log('>>>',classData)
                       return {
                         label: className,
                         value: className,
@@ -412,7 +422,7 @@ const Attendance = () => {
                   ))}
                 </View>
                 <FlatList
-                  data={filteredStudents}
+                  data={sortedAttendance}
                   renderItem={renderItem}
                   keyExtractor={keyExtractor}
                   initialNumToRender={10}
@@ -427,8 +437,12 @@ const Attendance = () => {
                   })}
                 />
               </View>
-              <TouchableOpacity onPress={handleSubmit} style={styles.submitButton}>
-                <Text style={{color:"white"}}>{attendanceTaken ? "Attendance Submitted" : "Submit Attendance"}</Text>
+              <TouchableOpacity
+                onPress={handleSubmit}
+                style={[styles.submitButton, !allAttendanceMarked() && styles.disabledSubmitButton]}
+                disabled={!allAttendanceMarked() || attendanceTaken}
+              >
+                <Text style={{ color: "white" }}>{"Submit Attendance"}</Text>
               </TouchableOpacity>
             </>
           )}
@@ -521,9 +535,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 20,
     borderWidth: 1,
-    
     backgroundColor: "#5B4DBC",
     marginTop: 16,
+  },
+  disabledSubmitButton: {
+    backgroundColor: "#A9A9A9",
+    opacity: 0.7,
   },
   errorContainer: {
     flex: 1,

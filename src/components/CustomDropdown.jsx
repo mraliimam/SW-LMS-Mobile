@@ -5,23 +5,14 @@ import { View, Text, TouchableOpacity, Modal, FlatList, StyleSheet } from 'react
 const CustomDropdown = ({ data, selectedValue, onValueChange, placeholder }) => {
   const [modalVisible, setModalVisible] = useState(false);
 
-  // console.log('CustomDropdown data:', data);
-  // console.log('Selected value:', selectedValue);
+  console.log('CustomDropdown data:', data);
+  console.log('Selected value:', selectedValue);
 
   const handleSelect = (item) => {
     onValueChange(item);
     setModalVisible(false);
   };
-  // const transformLabel = (label) => {
-  //   const parts = label.split('_'); 
-  //   if (parts.length === 2) {
-  //     const prefix = parts[0];
-  //     const rest = parts[1];
-  //     const gender = prefix === 'B' ? 'Boys' : prefix === 'G' ? 'Girls' : prefix;
-  //     return `${gender} ${rest}`;
-  //   }
-  //   return label;
-  // };
+
 
   const selectedItem = data.find(item => item.value === selectedValue);
 

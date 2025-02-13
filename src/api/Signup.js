@@ -35,7 +35,8 @@ export async function getStudents(username) {
     }
   }
 export async function addAttendance(data) {
-    console.log("Request body:", JSON.stringify( data ));
+
+    // console.log(API_URL);
     try {
       const response = await fetch(`${API_URL}/addAttendance`, {
         method: 'POST',
@@ -53,7 +54,8 @@ export async function addAttendance(data) {
     }
   }
 export async function getAttendance(data) {
-  console.log('data:>>',data)
+  // console.log(API_URL)
+  // console.log('data:>>',data)
     try {
       const response = await fetch(`${API_URL}/getAttendance`, {
         method: 'POST',
@@ -63,6 +65,7 @@ export async function getAttendance(data) {
         body: JSON.stringify(data ),
       });
       const data1 = await response.json();
+      // console.log('response of Getattendance:>>',data1)
       return data1;
     } catch (error) {
       console.error('Network or server error:', error.message);
