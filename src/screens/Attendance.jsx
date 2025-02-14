@@ -394,10 +394,8 @@ const Attendance = () => {
                 <View style={styles.pickerContainer}>
                   <CustomDropdown
                     data={classes.map((className) => {
-                      console.log('in teacher:>>',teachersData[0].class_name)
                       const classData = teachersData.find((c) => c.class_name === className)
-                      console.log('>>>',classData)
-                      return {
+                       return {
                         label: className,
                         value: className,
                         teacher: classData ? classData.teacher_name : "",
