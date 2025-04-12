@@ -19,6 +19,7 @@ import { Popup } from '../components/UI/Popup';
 import {login} from '../api/Signup';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const { width, height } = Dimensions.get('window');
 
 export default function SignInScreen({ navigation }) {
@@ -31,6 +32,7 @@ export default function SignInScreen({ navigation }) {
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const passwordInputRef = useRef(null);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     const keyboardWillShowListener = Keyboard.addListener(
@@ -110,7 +112,7 @@ export default function SignInScreen({ navigation }) {
           keyboardShouldPersistTaps="handled"
         >
           <StatusBar backgroundColor="transparent" translucent />
-          <View style={styles.header}>
+          <View style={{...styles.header, paddingTop:insets.top}}>
             <View style={styles.iconContainer}>
              <Image
                 source={require('../assets/image.png')}

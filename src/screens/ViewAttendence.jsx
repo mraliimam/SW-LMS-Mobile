@@ -163,8 +163,9 @@ export default function ViewAttendance() {
   const sortedAttendance = selectedClassData?.attendance?.sort((a, b) => a.sr_no - b.sr_no) || []
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      <View style={[styles.header, { marginTop: insets.top }]}>
+   <View style={{...styles.container, paddingTop:insets.top}}>
+     <View style={styles.container1}>
+      <View style={[styles.header]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Image source={require("../assets/arrow.png")} style={styles.icon} />
         </TouchableOpacity>
@@ -247,11 +248,13 @@ export default function ViewAttendance() {
           )}
         </View>
       )}
-    </SafeAreaView>
+    </View>
+   </View>
   )
 }
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "white", paddingHorizontal: 8 },
+  container: { flex: 1, backgroundColor: "#5B4DBC"},
+  container1: { flex: 1, backgroundColor: "white", paddingHorizontal: 8 },
   backButton: {
     width: 40,
     height: 40,
