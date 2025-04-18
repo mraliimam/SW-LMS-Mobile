@@ -12,6 +12,8 @@ import Attendance from './screens/Attendance';
 import ViewAttendance from './screens/ViewAttendence';
 import Students from './screens/Students';
 import StudentDetail from './screens/StudentDetail';
+import Exams from './screens/Exams';
+import ViewExamsResults from './screens/ViewExamsResult';
 
 const Stack = createSharedElementStackNavigator();
 
@@ -85,6 +87,17 @@ export default function Navigation() {
           <Stack.Screen
             name="Students"
             component={Students}
+            // options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="Exams"
+            component={Exams}
+            // options={{ headerShown: false }}
+          />
+          
+          <Stack.Screen
+            name="ViewExamsResults"
+            component={ViewExamsResults}
             // options={{ headerShown: false }}
           />
           <Stack.Screen
