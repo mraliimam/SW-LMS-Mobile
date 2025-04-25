@@ -24,16 +24,9 @@ import CalendarPicker from 'react-native-calendar-picker';
 import {format} from 'date-fns';
 import {useNavigation} from '@react-navigation/native';
 import CustomDropdown from '../components/CustomDropdown';
-import NetInfo from '@react-native-community/netinfo';
-
-const {width, height} = Dimensions.get('window');
-const ATTENDANCE_VIEW_CACHE_KEY = 'ATTENDANCE_VIEW_';
-const CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 24 hours
 
 export default function ViewExamsResults() {
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [attendanceData, setAttendanceData] = useState([]);
-  const [username, setUsername] = useState('Teacher');
   const [isLoading, setIsLoading] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
   const [classes, setClasses] = useState([]);
@@ -46,21 +39,32 @@ export default function ViewExamsResults() {
     'Internal Exam 2',
     'Final Exam',
   ]);
-  const [categories, setCategories] = useState([
-    'Qaida/Nazra',
-    'Syllabus Status',
-    'Tajweed',
-    'Reading',
-    'Syllabus',
-  ]);
   const [selectedExam, setSelectedExam] = useState(examsNames[0]);
-  const [selectedCategory, setSelectedCategory] = useState(categories[0]);
   const [statuses, setStatuses] = useState(['Results']);
   const [subExam, setSubExam] = useState({});
   const [classId, setClassId] = useState(null);
-  const [students, setStudents] = useState([]);
   const [subExamId, setSubExamId] = useState(null);
-  const [subExamType, setSubExamType] = useState('Category');
+  const [subExamType, setSubExamType] = useState('');
+  const [examResult, setExamResult] = useState([]);
+
+  const students = Class_Exam_Results?.students;
+  const exams = examResult?.sub_exams;
+  const result = students?.map(student => {
+    const subExamResults = exams.map(exam => {
+      const found = student.sub_exams.find(se => se.sub_exam_id === exam.id);
+      return {
+        exam_name: exam.name,
+        total_marks: exam.total_marks,
+        marks_obtained: found ? found.marks : 'N/A',
+      };
+    });
+
+    return {
+      student_id: student.student_id,
+      student_name: student.student_name,
+      exams: subExamResults,
+    };
+  });
 
   const getClasses = async () => {
     try {
@@ -68,8 +72,7 @@ export default function ViewExamsResults() {
       const response = await getAllClasses('Teacher');
       setClasses(response.Classes);
       if (response.Classes.length > 0) {
-        setSelectedClass(response.Classes[0].class_name);
-        setClassId(response.Classes[0].id);
+        setSelectedClass(response.Classes?.[0].class_name);
       }
     } catch (error) {
       console.log('Error in getting classes:', error);
@@ -78,26 +81,7 @@ export default function ViewExamsResults() {
     }
   };
 
-  const getStudentsOfClass = async className => {
-    try {
-      setIsLoading(true);
-      const targetClass = classes.find(cls => cls.class_name === className);
-      if (!targetClass) return;
-
-      const data = {
-        username: 'Teacher',
-        class_id: targetClass.id,
-      };
-
-      const response = await getStudentsByClass(data);
-      setStudents(response.Students);
-    } catch (error) {
-      console.log('Error in getting students:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  //getClassExamRecords///
   const getExams = async (classId, subExamId) => {
     try {
       if (!classId || !subExamId) return;
@@ -106,10 +90,11 @@ export default function ViewExamsResults() {
       const data = {
         username: 'Teacher',
         class_id: classId,
-        sub_exam_id: subExamId,
+        exam_id: subExamId,
       };
 
       const response = await getExamsByClass(data);
+
       setClassExamResults(response.Class_Exam_Results);
     } catch (error) {
       console.log('Error in getting exams:', error);
@@ -118,23 +103,24 @@ export default function ViewExamsResults() {
     }
   };
 
-  const getExamObject = async (className, examName, category) => {
+  /// getExams ///
+  const getExamObject = async (selectedClass, examName) => {
     try {
       setIsLoading(true);
       const data = {
         username: 'Teacher',
-        class_name: className,
+        class_name: selectedClass,
         exam_name: examName,
-        sub_exam_name: category,
       };
 
       const response = await getExamsObject(data);
+
+      setExamResult(response?.Exams);
       if (response.Exams && response.Exams.sub_exams) {
         setSubExam(response.Exams.sub_exams);
-        setSubExamId(response.Exams.sub_exams.id);
+        setClassId(response?.Exams?.class_id);
+        setSubExamId(response?.Exams?.sub_exams?.[0]?.main_exam_id);
         setSubExamType(response.Exams.sub_exams.category);
-
-        // Update statuses based on exam type
         if (response.Exams.sub_exams.category === 'Numerical') {
           setStatuses([
             `Marks (Out of ${response.Exams.sub_exams.total_marks})`,
@@ -160,11 +146,10 @@ export default function ViewExamsResults() {
   }, []);
 
   useEffect(() => {
-    if (selectedClass && selectedExam && selectedCategory) {
-      getExamObject(selectedClass, selectedExam, selectedCategory);
-      getStudentsOfClass(selectedClass);
+    if (selectedClass && selectedExam) {
+      getExamObject(selectedClass, selectedExam);
     }
-  }, [selectedClass, selectedExam, selectedCategory]);
+  }, [selectedClass, selectedExam]);
 
   useEffect(() => {
     if (classId && subExamId) {
@@ -184,50 +169,84 @@ export default function ViewExamsResults() {
     setSelectedExam(examName);
   };
 
-  const handleCategoryChange = category => {
-    setSelectedCategory(category);
-  };
-
   const renderExamItem = ({item, index}) => {
-    const student = students.find(s => Number(s.student_id) === item.student_id);
-    let statusDisplay, statusColor;
+    const getStatus = examName => {
+      const exam = item.exams.find(e => e.exam_name === examName);
+      if (!exam) return {display: 'N/A', color: '#F44336'};
 
-    if (subExamType === 'Numerical') {
-      const percentage = (Number(item.marks) / Number(subExam.total_marks)) * 100;
-      statusDisplay = `${item.marks}/${subExam.total_marks}`;
-      statusColor = percentage >= 50 ? '#4CAF50' : '#F44336';
-    } else {
-      if (
-        item.marks === true ||
-        item.marks === 'true' ||
-        item.marks === 'True'
-      ) {
-        statusDisplay = 'Yes';
-        statusColor = '#4CAF50'; // Green for Yes/True
-      } else if (
-        item.marks === false ||
-        item.marks === 'false' ||
-        item.marks === 'False'
-      ) {
-        statusDisplay = 'No';
-        statusColor = '#F44336'; // Red for No/False
-      } else {
-        // For other categorical values, show as is with neutral color
-        statusDisplay = item.marks;
-        statusColor = '#2196F3'; // Blue for other statuses
+      if (exam.total_marks.toLowerCase() === 'yes/no') {
+        const mark = exam.marks_obtained?.toString().toLowerCase();
+        if (mark === 'yes' || mark === 'y' || mark === 'true') {
+          return {display: 'Yes', color: '#4CAF50'}; // Green for Yes
+        } else if (mark === 'no' || mark === 'n' || mark === 'false') {
+          return {display: 'No', color: '#F44336'}; // Red for No
+        } else {
+          return {display: 'N/A', color: '#F44336'}; // Default Red for N/A
+        }
       }
-    }
+
+      const isNumerical =
+        !isNaN(Number(exam.total_marks)) && !isNaN(Number(exam.marks_obtained));
+
+      if (isNumerical) {
+        const marks = Number(exam.marks_obtained);
+        const total = Number(exam.total_marks);
+        const color = marks >= 15 ? '#4CAF50' : '#F44336';
+
+        return {
+          display: `${marks}/${total}`,
+          color,
+        };
+      }
+
+      return {display: 'N/A', color: '#F44336'};
+    };
+
+    const renderStatusCell = examName => {
+      const {display, color} = getStatus(examName);
+      return (
+        <View
+          style={[
+            styles.cell,
+            styles.idCell,
+            {alignItems: 'center', justifyContent: 'center'},
+          ]}>
+          <View
+            style={{
+              backgroundColor: color,
+              borderRadius: 75,
+              height: 45,
+              width: 45,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+            <Text
+              style={{
+                color: '#fff',
+                fontWeight: 'bold',
+                fontSize: 12,
+                textAlign: 'center',
+              }}>
+              {display}
+            </Text>
+          </View>
+        </View>
+      );
+    };
 
     return (
       <View style={styles.row}>
         <Text style={[styles.cell, styles.indexCell]}>{index + 1}</Text>
         <Text style={[styles.cell, styles.nameCell]}>
-          {student ? student.name : 'Unknown'}
+          {item?.student_name || 'Unknown'}
         </Text>
         <Text style={[styles.cell, styles.idCell]}>{item.student_id}</Text>
-        <View style={[styles.statusCell, {backgroundColor: statusColor}]}>
-          <Text style={styles.statusText}>{statusDisplay}</Text>
-        </View>
+
+        {renderStatusCell('Qaida/Nazra Status')}
+        {renderStatusCell('Syllabus Status')}
+        {renderStatusCell('Tajweed')}
+        {renderStatusCell('Reading')}
+        {renderStatusCell('Syllabus')}
       </View>
     );
   };
@@ -268,6 +287,7 @@ export default function ViewExamsResults() {
                 data={classes.map(cls => ({
                   label: cls.class_name,
                   value: cls.class_name,
+                  teacher: cls.teacher_name,
                 }))}
                 selectedValue={selectedClass}
                 onValueChange={handleClassChange}
@@ -289,20 +309,6 @@ export default function ViewExamsResults() {
                 style={styles.dropdown}
               />
             </View>
-
-            <View style={styles.dropdownRow}>
-              <Text style={styles.dropdownLabel}>Category:</Text>
-              <CustomDropdown
-                data={categories.map(cat => ({
-                  label: cat,
-                  value: cat,
-                }))}
-                selectedValue={selectedCategory}
-                onValueChange={handleCategoryChange}
-                placeholder="Select Category"
-                style={styles.dropdown}
-              />
-            </View>
           </View>
 
           {selectedClass && (
@@ -311,34 +317,53 @@ export default function ViewExamsResults() {
                 {selectedExam} Results - {selectedClass}
               </Text>
 
-              <View style={styles.tableHeader}>
-                <Text style={[styles.headerCell, styles.srCell]}>#</Text>
-                <Text style={[styles.headerCell, styles.nameCell]}>Name</Text>
-                <Text style={[styles.headerCell, styles.idCell]}>ID</Text>
-                <Text style={[styles.headerCell, styles.statusCell]}>
-                  {subExamType === 'Numerical' ? 'Marks' : 'Status'}
-                </Text>
-              </View>
-
-              {isLoading ? (
-                <View style={styles.loaderContainer}>
-                  <PencilLoader size={80} color="#5B4DBC" />
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={styles.tableHeader}>
+                  <View>
+                    <View style={{flexDirection: 'row'}}>
+                      <Text style={[styles.headerCell, styles.srCell]}>#</Text>
+                      <Text style={[styles.headerCell, styles.nameCell]}>
+                        Name
+                      </Text>
+                      <Text style={[styles.headerCell, {width: 100}]}>ID</Text>
+                      <Text style={[styles.headerCell, styles.idCell]}>
+                        Qaida/Nazra Status (Y/N)
+                      </Text>
+                      <Text style={[styles.headerCell, styles.idCell]}>
+                        Syllabus Status(Y/N)
+                      </Text>
+                      <Text style={[styles.headerCell, styles.idCell]}>
+                        Tajweed (30)
+                      </Text>
+                      <Text style={[styles.headerCell, styles.idCell]}>
+                        Reading (30)
+                      </Text>
+                      <Text style={[styles.headerCell, styles.idCell]}>
+                        Syllabus (40)
+                      </Text>
+                    </View>
+                    {isLoading ? (
+                      <View style={styles.loaderContainer}>
+                        <PencilLoader size={80} color="#5B4DBC" />
+                      </View>
+                    ) : (
+                      <FlatList
+                        data={result}
+                        renderItem={renderExamItem}
+                        keyExtractor={item => item.student_id.toString()}
+                        ListEmptyComponent={
+                          <Text style={styles.noDataText}>
+                            {result?.length > 0
+                              ? 'No exam results available for this selection.'
+                              : 'No students found in this class.'}
+                          </Text>
+                        }
+                        scrollEnabled={false}
+                      />
+                    )}
+                  </View>
                 </View>
-              ) : (
-                <FlatList
-                  data={Class_Exam_Results}
-                  renderItem={renderExamItem}
-                  keyExtractor={item => item.student_id.toString()}
-                  ListEmptyComponent={
-                    <Text style={styles.noDataText}>
-                      {students.length > 0
-                        ? 'No exam results available for this selection.'
-                        : 'No students found in this class.'}
-                    </Text>
-                  }
-                  scrollEnabled={false}
-                />
-              )}
+              </ScrollView>
             </View>
           )}
         </ScrollView>
@@ -461,13 +486,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   tableHeader: {
-    flexDirection: 'row',
     borderBottomWidth: 1,
     borderBottomColor: '#5B4DBC',
     paddingVertical: 12,
     backgroundColor: '#F5F5F5',
     borderRadius: 5,
     marginBottom: 8,
+    width: 1000,
   },
   headerCell: {
     fontWeight: 'bold',

@@ -80,117 +80,125 @@ export default function HomeScreen({navigation}) {
     } else navigation.navigate(label);
   };
 
-const handlePopupPress = where => {
-  navigation.navigate(where);
-  setPopupVisible(false);
-};
+  const handlePopupPress = where => {
+    navigation.navigate(where);
+    setPopupVisible(false);
+  };
 
-return (
-  <>
-    <StatusBar barStyle="light-content" backgroundColor="#5B4DBC" />
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.profileSection}>
-            <Image
-              source={require('../assets/user.png')}
-              style={styles.profileImage}
-            />
-            <View style={styles.profileInfo}>
-              {loading ? (
-                <ActivityIndicator size="small" color="#FFFFFF" /> // Show loading spinner
-              ) : (
-                <Text style={styles.profileName}>{username}</Text> // Show username once loaded
-              )}
+  return (
+    <>
+      <StatusBar barStyle="light-content" backgroundColor="#5B4DBC" />
+      <SafeAreaView style={styles.container}>
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.profileSection}>
+              <Image
+                source={require('../assets/user.png')}
+                style={styles.profileImage}
+              />
+              <View style={styles.profileInfo}>
+                {loading ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" /> // Show loading spinner
+                ) : (
+                  <Text style={styles.profileName}>{username}</Text> // Show username once loaded
+                )}
+              </View>
             </View>
+            <TouchableOpacity style={styles.closeButton}>
+              <Image
+                source={require('../assets/menu.png')}
+                style={{width: 25, height: 25, tintColor: 'white'}}
+              />
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity style={styles.closeButton}>
-            <Image
-              source={require('../assets/menu.png')}
-              style={{width: 25, height: 25, tintColor: 'white'}}
-            />
-          </TouchableOpacity>
-        </View>
 
-        {/* Menu Grid */}
-        <View style={styles.menuGrid}>
-          {menuItems.map((item, index) => (
-            <MenuItem
-              key={index}
-              icon={item.icon}
-              label={item.label}
-              onPress={() => handleAttendancePress(item.label)}
-            />
-          ))}
-        </View>
+          {/* Menu Grid */}
+          <View style={styles.menuGrid}>
+            {menuItems.map((item, index) => (
+              <MenuItem
+                key={index}
+                icon={item.icon}
+                label={item.label}
+                onPress={() => handleAttendancePress(item.label)}
+              />
+            ))}
+          </View>
 
-        {/* Logout Button */}
-        <TouchableOpacity style={styles.logoutButton} onPress={() => logout()}>
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
-      </ScrollView>
-      <Popup
-        visible={popupVisible}
-        onClose={() => setPopupVisible(false)}
-        title="Select">
-        <View
-          style={{
-            // flex: 1,
-            flexDirection: 'row-reverse',
-            justifyContent: 'space-around',
-            alignItems: 'center',
-          }}>
+          {/* Logout Button */}
           <TouchableOpacity
-            style={{
-              width: 150,
-              height: 50,
-              // paddingVertical: 10,
-              // paddingHorizontal: 20,
-              backgroundColor: '#5B4DBC',
-              justifyContent: 'center',
-              alignItems: 'center',
-              borderRadius: 100,
-              marginHorizontal: 10,
-            }}
-            onPress={() => handlePopupPress(type)}>
-            <Text
-              style={{
-                color: 'white',
-                fontWeight: '500',
-                alignSelf: 'center',
-              }}>
-              {type == 'Attendance'
-                ? 'Take Attendance'
-                : 'Upload Exams results'}
-            </Text>
+            style={styles.logoutButton}
+            onPress={() => logout()}>
+            <Text style={styles.logoutText}>Logout</Text>
           </TouchableOpacity>
-          <TouchableOpacity
+        </ScrollView>
+        <Popup
+          visible={popupVisible}
+          onClose={() => setPopupVisible(false)}
+          title="Select">
+          <View
             style={{
-              width: 100,
-              height: 50,
-              backgroundColor: '#5B4DBC',
-              justifyContent: 'center',
+              // flex: 1,
+              flexDirection: 'row-reverse',
+              justifyContent: 'space-around',
               alignItems: 'center',
-              borderRadius: 100,
-              alignSelf: 'center',
-            }}
-            onPress={() => handlePopupPress(type == "Attendance"?'ViewAttendance':'ViewExamsResults')}>
-            <Text
+            }}>
+            <TouchableOpacity
               style={{
-                color: 'white',
-                fontWeight: '500',
+                width: 160,
+                height: 50,
+                // paddingVertical: 10,
+                // paddingHorizontal: 20,
+                backgroundColor: '#5B4DBC',
+                justifyContent: 'center',
+                alignItems: 'center',
+                borderRadius: 100,
+                marginHorizontal: 12,
+              }}
+              onPress={() => handlePopupPress(type)}>
+              <Text
+                style={{
+                  color: 'white',
+                  fontWeight: '500',
+                  alignSelf: 'center',
+                }}>
+                {type == 'Attendance'
+                  ? 'Take Attendance'
+                  : 'Upload Exams results'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{
+                width: 160,
+                height: 50,
+                backgroundColor: '#5B4DBC',
+                justifyContent: 'center',
+                alignItems: 'center',
+                borderRadius: 100,
                 alignSelf: 'center',
-              }}>
-              {type == 'Attendance' ? 'View Attendance' : 'View Exams results'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </Popup>
-    </SafeAreaView>
-  </>
-);
-} 
+              }}
+              onPress={() =>
+                handlePopupPress(
+                  type == 'Attendance' ? 'ViewAttendance' : 'ViewExamsResults',
+                )
+              }>
+              <Text
+                style={{
+                  color: 'white',
+                  fontWeight: '500',
+                  alignSelf: 'center',
+                }}>
+                {type == 'Attendance'
+                  ? 'View Attendance'
+                  : 'View Exams results'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </Popup>
+      </SafeAreaView>
+    </>
+  );
+}
 
 const styles = StyleSheet.create({
   container: {flex: 1, backgroundColor: '#5B4DBC'},

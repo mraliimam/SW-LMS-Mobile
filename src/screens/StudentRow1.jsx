@@ -1,63 +1,130 @@
-import React, { memo } from 'react';
-import { View, Text, TouchableOpacity, TextInput, StyleSheet } from 'react-native';
+import React, {memo, useState} from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+} from 'react-native';
+import CustomDropdown from '../components/CustomDropdown';
 
-const StudentRowOne = memo(({ item, statuses, onAttendanceChange, currentValue, index }) => {
-    const maxMark = statuses[0] ? parseInt(statuses[0]) : 30;
-  
-    const handleMarkChange = (text) => {
-      if (text === '' || /^\d+$/.test(text)) {
-        const num = text === '' ? 0 : parseInt(text);
-        if (num <= maxMark) {
-          onAttendanceChange(item.student_id, text);
-        }
-      }
-    };
-  
-    return (
-      <View style={styles.row}>
-        <Text style={[styles.cell, styles.SrCell]}>{index}</Text>
-        <Text style={[styles.cell, styles.nameCell]}>{item.name}</Text>
-        <Text style={[styles.cell, styles.idcell]}>{item.student_id}</Text>
-        
-        {statuses.length === 2 ? (
-          // Radio buttons for Yes/No
-          statuses.map(status => (
-            <TouchableOpacity
-              key={status}
-              style={styles.radioContainer}
-              onPress={() => onAttendanceChange(item.student_id, status)}>
-              <View style={[
-                styles.radio,
-                currentValue === status && styles.radioSelected
-              ]}>
-                {/* {currentValue === status && <View style={styles.radioInner} />} */}
-              </View>
-            </TouchableOpacity>
-          ))
-        ) : (
-          // Numeric input
-          <View style={styles.inputWrapper}>
-            <TextInput
-              style={styles.input}
-              keyboardType="numeric"
-              value={currentValue?.toString()}
-              onChangeText={handleMarkChange}
-              maxLength={2}
-              placeholder="0"
-            />
-            <Text style={styles.maxMarkText}>/ {maxMark}</Text>
-          </View>
-        )}
-      </View>
-    );
-  });
+const StudentRowOne = memo(({item, onAttendanceChange, index}) => {
+  const [status, setStatus] = useState({}); // To hold statuses for each exam
+  const [marks, setMarks] = useState({}); // To hold marks for each exam
+  // Handle status change for any exam
+  const handleStatusChange = (examName, selectedStatus) => {
+    // console.log(
+    //   `Selected status for=========================== ${examName}: ${selectedStatus}`,
+    // );
+    setStatus(prev => ({...prev, [examName]: selectedStatus}));
+    onAttendanceChange(item.student_id, selectedStatus, examName);
+  };
+
+  // Handle marks change for any exam
+  const handleMarkChange = (examName, value) => {
+    const numericValue = parseInt(value, 10);
+
+    // Restrict based on exam type
+    if (
+      (examName === 'Tajweed' || examName === 'Reading') &&
+      numericValue > 30
+    ) {
+      return;
+    }
+
+    if (examName === 'Syllabus' && numericValue > 40) {
+      return;
+    }
+
+    setMarks(prev => ({...prev, [examName]: value}));
+    onAttendanceChange(item.student_id, value, examName);
+  };
+
+  // Function to render either dropdown or text input based on exam name
+  const renderInput = exam => {
+    const {exam_name, marks_obtained, total_marks} = exam;
+
+    // For dropdown inputs (Yes/No)
+    if (exam_name === 'Qaida/Nazra Status' || exam_name === 'Syllabus Status') {
+      return (
+        <View style={{width: 150, left: 30}}>
+          <CustomDropdown
+            data={[
+              {label: 'Yes', value: 'Yes'},
+              {label: 'No', value: 'No'},
+            ]}
+            onValueChange={selected => handleStatusChange(exam_name, selected)}
+            value={
+              status[exam_name] ||
+              (marks_obtained !== 'N/A' ? marks_obtained : '')
+            }
+            placeholder={
+              status[exam_name] ||
+              (marks_obtained !== 'N/A' ? marks_obtained : 'Select')
+            }
+            dropdownStyle={{
+              width: 50,
+              height: 40,
+              top: 6,
+              justifyContent: 'center',
+            }}
+          />
+        </View>
+      );
+    }
+
+    // For marks input
+    if (
+      exam_name === 'Tajweed' ||
+      exam_name === 'Reading' ||
+      exam_name === 'Syllabus'
+    ) {
+      return (
+        <View style={styles.inputWrapper}>
+          <TextInput
+            style={styles.input}
+            keyboardType="numeric"
+            value={
+              marks[exam_name] !== undefined
+                ? marks[exam_name]
+                : marks_obtained !== 'N/A'
+                ? marks_obtained
+                : ''
+            }
+            onChangeText={value => handleMarkChange(exam_name, value)}
+            maxLength={2}
+            placeholder="0"
+            placeholderTextColor="#999"
+          />
+        </View>
+      );
+    }
+
+    return null;
+  };
+
+  return (
+    <View style={styles.row}>
+      <Text style={[styles.cell, styles.SrCell]}>{index}</Text>
+      <Text style={[styles.cell, styles.nameCell]}>{item.student_name}</Text>
+      <Text style={[styles.cell, {width: 100, textAlign: 'left', right: 10}]}>
+        {item.student_id}
+      </Text>
+
+      {item?.exams?.map((exam, idx) => (
+        <View key={idx} style={styles.examWrapper}>
+          {renderInput(exam)}
+        </View>
+      ))}
+    </View>
+  );
+});
 
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     borderBottomWidth: 1,
     borderBottomColor: '#5B4DBC',
-    paddingVertical: 12,
     alignItems: 'center',
   },
   cell: {
@@ -66,8 +133,7 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   nameCell: {
-    flex: 2,
-    paddingLeft: 16,
+    flex: 4,
     textAlign: 'left',
   },
   SrCell: {
@@ -80,35 +146,19 @@ const styles = StyleSheet.create({
     paddingLeft: 16,
     textAlign: 'left',
   },
-  radioContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  radio: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: '#5B4DBC',
+  dropdownWrapper: {
+    flex: 2,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  radioSelected: {
-    backgroundColor: '#5B4DBC',
-  },
-  radioInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: 'white',
   },
   inputWrapper: {
-    flex: 2,
+    width: 120,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 40,
+    height: 35,
+    gap: 100,
+    top: 5,
   },
   input: {
     width: 50,
@@ -120,11 +170,15 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
     fontSize: 16,
     includeFontPadding: false,
+    color: '#333',
   },
   maxMarkText: {
     fontSize: 14,
     color: '#666',
-    marginLeft: 5,
+    right: 35,
+  },
+  examWrapper: {
+    marginBottom: 10,
   },
 });
 
