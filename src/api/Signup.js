@@ -1,8 +1,7 @@
 import {API_URL} from '@env';
 import axios from 'axios';
-export async function login(username, password) {
-  console.log('APPPPPIII', API_URL);
 
+export async function login(username, password) {
   try {
     const response = await fetch(`${API_URL}/login`, {
       method: 'POST',
@@ -18,6 +17,7 @@ export async function login(username, password) {
     return {success: false, message: 'Network error, please try again later.'};
   }
 }
+
 export async function getStudents(username) {
   // console.log('for getstudents:>',username)
   try {
@@ -38,16 +38,20 @@ export async function getStudents(username) {
 }
 export async function getAllClasses(user) {
   try {
-    console.log('POHOOOOOOOOOOO', user);
+    // console.log('POHOOOOOOOOOOO', user);
     const dataa = {
-      username:'Teacher'
-    }
+      username: 'Teacher',
+    };
 
-    const response = await axios.post(`${API_URL}/getAllClasses`, {username:'admin'}, {
-      headers: {
-        'Content-Type': 'application/json',
+    const response = await axios.post(
+      `${API_URL}/getAllClasses`,
+      {username: 'admin'},
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
       },
-    });
+    );
     return response.data;
   } catch (error) {
     console.error('Network or server error:', error.message);
@@ -59,7 +63,7 @@ export async function getAllClasses(user) {
 //     // console.log('AIEEEEEEEy', data);
 //     console.log('Sending data:', data);
 // console.log('Type of data:', typeof data);
-    
+
 //     // const response = await axios.post(
 //     //   `${API_URL}/getStudentsInfoByClass`,
 //     //   {username:'Teacher', class_id:1},
@@ -70,7 +74,7 @@ export async function getAllClasses(user) {
 //     //   },
 //     // );
 //     // console.log('RESPOSSSSS', response);
-    
+
 //     // return response.data;
 //   } catch (error) {
 //     console.error('Error while getting studentssssss:', error.message);
@@ -82,35 +86,31 @@ export async function getStudentsByClass(data) {
     const response = await axios.post(
       `${API_URL}/getStudentsInfoByClass`,
       data,
-    );    
+    );
     return response.data;
   } catch (error) {
-    console.error('Network or server error:', error?.response?.data || error.message);
-    return { success: false };
+    console.error(
+      'Network or server error:',
+      error?.response?.data || error.message,
+    );
+    return {success: false};
   }
 }
+
 export async function getExamsByClass(data) {
   try {
-    const response = await axios.post(
-      `${API_URL}/getClassExamRecords`,
-      data,
-    );    
+    const response = await axios.post(`${API_URL}/getClassExamRecords`, data);
     return response.data;
   } catch (error) {
-    console.error('Network or server error:', error?.response?.data || error.message);
-    return { success: false };
+    console.error(error.message); // Just show the error message
   }
 }
 export async function getExamsObject(data) {
   try {
-    const response = await axios.post(
-      `${API_URL}/getExams`,
-      data,
-    );    
+    const response = await axios.post(`${API_URL}/getExams`, data);
     return response.data;
   } catch (error) {
-    console.error('Network or server error:', error?.response?.data || error.message);
-    return { success: false };
+    console.error(error.message); // Just show the error message
   }
 }
 

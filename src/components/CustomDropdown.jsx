@@ -1,30 +1,32 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, Modal, FlatList, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Modal,
+  FlatList,
+  StyleSheet,
+} from 'react-native';
 
-const CustomDropdown = ({ data, selectedValue, onValueChange, placeholder }) => {
+const CustomDropdown = ({data, selectedValue, onValueChange, placeholder, dropdownStyle}) => {
   const [modalVisible, setModalVisible] = useState(false);
 
-  console.log('CustomDropdown data:', data);
-  console.log('Selected value:', selectedValue);
-
-  const handleSelect = (item) => {
+  const handleSelect = item => {
     onValueChange(item);
     setModalVisible(false);
   };
 
-
-  const selectedItem = data.find(item => item.value === selectedValue);
+  const selectedItem = data?.find(item => item.value === selectedValue);
 
   return (
     <View>
       <TouchableOpacity
-        style={styles.dropdownButton}
+        style={[styles.dropdownButton, dropdownStyle]} // Apply custom style here
         onPress={() => setModalVisible(true)}>
         <Text style={styles.dropdownButtonText}>
           {selectedValue ? (
             <>
-              {(selectedValue)}
+              {selectedValue}
               {selectedItem?.teacher && (
                 <Text style={styles.teacherText}>{` (${selectedItem.teacher})`}</Text>
               )}
@@ -39,28 +41,23 @@ const CustomDropdown = ({ data, selectedValue, onValueChange, placeholder }) => 
         transparent={true}
         animationType="slide"
         visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
+        onRequestClose={() => setModalVisible(false)}>
         <TouchableOpacity
           style={styles.modalOverlay}
-          onPress={() => setModalVisible(false)}
-        >
+          onPress={() => setModalVisible(false)}>
           <View style={styles.modalContent}>
             <FlatList
               data={data}
-              keyExtractor={(item) => item.value.toString()}
-              renderItem={({ item }) => (
+              keyExtractor={item => item.value.toString()}
+              renderItem={({item}) => (
                 <TouchableOpacity
                   style={[
                     styles.item,
-                    selectedValue === item.value && styles.selectedItem
+                    selectedValue === item.value && styles.selectedItem,
                   ]}
-                  onPress={() => handleSelect(item.value)}
-                >
+                  onPress={() => handleSelect(item.value)}>
                   <View style={styles.itemContent}>
-                    <Text style={styles.itemText}>
-                      {(item.label)}
-                    </Text>
+                    <Text style={styles.itemText}>{item.label}</Text>
                     {item.teacher && (
                       <Text style={styles.teacherText}>
                         {` (${item.teacher})`}
@@ -109,7 +106,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#ccc',
   },
   itemText: {
-    color:"black",
+    color: 'black',
     fontSize: 16,
   },
   itemContent: {
@@ -126,6 +123,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginLeft: 8,
   },
+
+  // Custom styles for each dropdown type
+  qaidaDropdown: {
+    borderColor: '#FF5733', // Example color for Qaida/Nazra
+    backgroundColor: '#FF5733', // Background color
+  },
+  syllabusDropdown: {
+    borderColor: '#33FF57', // Example color for Syllabus
+    backgroundColor: '#33FF57', // Background color
+  },
 });
 
-export default CustomDropdown; 
+export default CustomDropdown;

@@ -1,11 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { View, ActivityIndicator } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
-import { createSharedElementStackNavigator } from 'react-navigation-shared-element';
+import React, {useEffect, useState} from 'react';
+import {View, ActivityIndicator} from 'react-native';
+import {NavigationContainer} from '@react-navigation/native';
+import {createSharedElementStackNavigator} from 'react-navigation-shared-element';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { TransitionPresets } from '@react-navigation/stack';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-
+import {TransitionPresets} from '@react-navigation/stack';
+import {SafeAreaProvider} from 'react-native-safe-area-context';
 import HomeScreen from './screens/HomeScreen';
 import SignInScreen from './screens/SignInScreen';
 import Attendance from './screens/Attendance';
@@ -39,7 +38,7 @@ export default function Navigation() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
         <ActivityIndicator size="large" color="#5B4DBC" />
       </View>
     );
@@ -49,25 +48,22 @@ export default function Navigation() {
     <SafeAreaProvider>
       <NavigationContainer>
         <Stack.Navigator
-
           initialRouteName={initialRoute}
-
           screenOptions={{
             ...TransitionPresets.SlideFromRightIOS,
-            cardStyle: { backgroundColor: 'transparent' },
+            cardStyle: {backgroundColor: 'transparent'},
             cardOverlayEnabled: true,
             headerShown: false,
-            cardStyleInterpolator: ({ current: { progress } }) => ({
+            cardStyleInterpolator: ({current: {progress}}) => ({
               cardStyle: {
                 opacity: progress,
               },
             }),
-          }}
-        >
+          }}>
           <Stack.Screen
             name="SignIn"
             component={SignInScreen}
-            options={{ headerShown: false }}
+            options={{headerShown: false}}
           />
           <Stack.Screen
             name="Home"
@@ -77,7 +73,7 @@ export default function Navigation() {
           <Stack.Screen
             name="Attendance"
             component={Attendance}
-            options={{ headerShown: false }}
+            options={{headerShown: false}}
           />
           <Stack.Screen
             name="ViewAttendance"
@@ -94,7 +90,7 @@ export default function Navigation() {
             component={Exams}
             // options={{ headerShown: false }}
           />
-          
+
           <Stack.Screen
             name="ViewExamsResults"
             component={ViewExamsResults}
@@ -105,7 +101,7 @@ export default function Navigation() {
             component={StudentDetail}
             // options={{ headerShown: false }}
             sharedElements={(route, otherRoute, showing) => {
-              const { student } = route.params;
+              const {student} = route.params;
               return [
                 {
                   id: `student.${student.student_id}.avatar`,
@@ -133,4 +129,3 @@ export default function Navigation() {
     </SafeAreaProvider>
   );
 }
-

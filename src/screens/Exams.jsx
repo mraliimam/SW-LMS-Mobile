@@ -8,6 +8,7 @@ import {
   View,
   ToastAndroid,
   StatusBar,
+  ScrollView,
 } from 'react-native';
 import CustomDropdown from '../components/CustomDropdown';
 import {addExamRecord, getExams} from '../services/ExamsManager';
@@ -19,14 +20,12 @@ import {
   getStudents,
   getStudentsByClass,
 } from '../api/Signup';
-import {useFocusEffect} from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import StudentRowOne from './StudentRow1';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {sub} from 'date-fns';
 import {Popup} from '../components/UI/Popup';
 
 const Exams = ({navigation}) => {
+  const [button, setButton] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
   const [sendLoading, setSendLoading] = useState(false);
@@ -41,183 +40,151 @@ const Exams = ({navigation}) => {
     'Internal Exam 2',
     'Final Exam',
   ]);
+  const [statuse, setStatuses] = useState(['Results']);
   const [classes, setClasses] = useState([]);
-  const [categories, setCategories] = useState([
-    'Qaida/Nazra',
-    'Syllabus Status',
-    'Tajweed',
-    'Reading',
-    'Syllabus',
-  ]);
-  const [categoriesToSend, setCategoriesToSend] = useState([]);
   const [selectedClass, setSelectedClass] = useState(
     classes.length > 0 ? classes[0].class_name : 'Boys Qaida 1',
   );
   const [popupVisible, setPopupVisible] = useState(false);
   const [popupMessage, setPopupMessage] = useState('');
   const [selectedExam, setSelectedExam] = useState('Internal Exam 1');
-  const [selectedCategory, setSelectedCategory] = useState('Qaida/Nazra');
-  const [selectedCategory1, setSelectedCategory1] = useState({
-    category: 'Category',
-    id: 1,
-    main_exam_id: 1,
-    name: 'Qaida/Nazra',
-    total_marks: 'Yes/No',
-  });
-  const [students, setStudents] = useState([]);
   const [marks, setMarks] = useState({});
   const [attendance, setAttendance] = useState({});
   const [submissionData, setSubmissionData] = useState({
     username: userName,
-    sub_exam_id: subExamId,
+    exam_id: subExamId,
     students_data: [],
   });
+  const [subExamNewId, setSubExamNewId] = useState();
+
+  const [classNewId, setClassNewId] = useState();
+
+  // console.log(subExamNewId, '========log');
+
+  console.log(JSON.stringify(submissionData, null, 2), '=========');
+
   const insets = useSafeAreaInsets();
+  const [examResult, setExamResult] = useState([]);
+  // console.log(Class_Exam_Results?.students, 'Class_Exam_Results=====================');
+  // console.log(examResult?.sub_exams, 'examResult=====================');
+
+  const students = Class_Exam_Results?.students || []; // Default to empty array if undefined
+  const exams = examResult?.sub_exams || []; // Default to empty array if undefined
+
+  const result = students.map(student => {
+    const subExamResults = exams.map(exam => {
+      const found = student.sub_exams?.find(se => se.sub_exam_id === exam.id);
+      return {
+        exam_name: exam.name,
+        total_marks: exam.total_marks,
+        marks_obtained: found ? found.marks : 'N/A',
+      };
+    });
+
+    return {
+      student_id: student.student_id,
+      student_name: student.student_name,
+      exams: subExamResults,
+    };
+  });
+
+  useEffect(() => {
+    setSubmissionData(prev => ({
+      ...prev,
+      exam_id: subExamId,
+    }));
+  }, [subExamId]);
+  // console.log('Result:', result);
+
   const getClasses = async () => {
     try {
-      // setLoading(true)
-      const repsonse = await getAllClasses('Teacher');
-      setClasses(repsonse.Classes);
-    } catch {
-      console.log('error in getting classes');
+      setLoading(true);
+      const response = await getAllClasses('Teacher');
+      setClasses(response.Classes);
+      if (response.Classes.length > 0) {
+        setSelectedClass(response.Classes?.[0].class_name);
+      }
+    } catch (error) {
+      console.log('Error in getting classes:', error);
     } finally {
-      // setLoading(false)
-    }
-  };
-  const getStudentsOfClass = async nome => {
-    try {
-      const targetClass = classes.find(
-        cls => cls.class_name === nome ?? selectedClass,
-      );
-      // setLoading(true)
-      const data = {
-        username: 'Teacher',
-        class_id: targetClass ? targetClass.id : 1,
-      };
-
-      const repsonse = await getStudentsByClass(data);
-      setStudents(repsonse.Students);
-    } catch {
-      console.log('error in getting classes');
-    } finally {
-      // setLoading(false)
+      setLoading(false);
     }
   };
 
-  const getExams = async (classId, subId) => {
-    try {
-      const data = {
-        username: 'Teacher',
-        class_id: classId ?? 1,
-        sub_exam_id: subId ?? 1,
-      };
-      // setLoading(true)
-      const repsonse = await getExamsByClass(data);
-      setClassExamResults(repsonse.Class_Exam_Results);
-    } catch {
-      console.log('error in getting classes');
-    } finally {
-      // setLoading(false)
-    }
-  };
-  const getObject = async (sClass, exam, subExam) => {
-    try {
-      const data = {
-        username: 'Teacher',
-        class_name: sClass,
-        exam_name: exam,
-        sub_exam_name: subExam,
-      };
-      // setLoading(true)
-      const repsonse = await getExamsObject(data);
-      setSubExam(repsonse.Exams.sub_exams);
-      setSubExamId(repsonse.Exams.sub_exams.id);
-      setSubmissionData(prev => ({
-        ...prev,
-        sub_exam_id: repsonse.Exams.sub_exams.id,
-      }));
-      setSubExamType(repsonse.Exams.sub_exams.category);
+  //getClassExamRecords///
+  const getExams = async (classNewId, subExamId) => {
+    // console.log(classNewId, subExamId, 'getExamsByClass');
 
-      // setClasses(repsonse.Classes);
-    } catch {
-      console.log('error in getting classes');
+    try {
+      if (!classNewId || !subExamId) return;
+
+      setLoading(true);
+      const data = {
+        username: 'Teacher',
+        class_id: classNewId,
+        exam_id: subExamId,
+      };
+
+      const response = await getExamsByClass(data);
+      // console.log(response, 'response======================:::::::::::');
+      setClassExamResults(response.Class_Exam_Results);
+    } catch (error) {
+      console.log('Error in getting exams:', error);
     } finally {
-      // setLoading(false)
+      setLoading(false);
     }
   };
+
+  /// getExams ///
+  const getObject = async (selectedClass, examName) => {
+    // console.log(selectedClass, examName, 'getExams');
+
+    try {
+      setLoading(true);
+      const data = {
+        username: 'Teacher',
+        class_name: selectedClass,
+        exam_name: examName,
+      };
+
+      const response = await getExamsObject(data);
+      // console.log(
+      //   'Exam object response:::::::::::::::::::::::::::::::::::::::::::::',
+      //   response?.Exams?.sub_exams,
+      // );
+      setExamResult(response?.Exams);
+      if (response.Exams && response.Exams.sub_exams) {
+        setSubExam(response.Exams.sub_exams);
+        setSubExamId(response?.Exams?.sub_exams?.[0]?.main_exam_id);
+        setSubExamType(response.Exams.sub_exams.category);
+        setClassNewId(response?.Exams?.class_id);
+        setSubExamNewId(response?.Exams?.sub_exams);
+
+        // Update statuses based on exam type
+        if (response.Exams.sub_exams.category === 'Numerical') {
+          setStatuses([
+            `Marks (Out of ${response.Exams.sub_exams.total_marks})`,
+          ]);
+        } else {
+          setStatuses(['Status']);
+        }
+      }
+    } catch (error) {
+      console.log('Error in getting exam object:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const statuses = useMemo(() => {
     return subExam.category === 'Numerical'
       ? [subExam.total_marks]
       : ['Yes', 'No'];
   }, [subExam]);
 
-  const handleMarkChange = useCallback(
-    (studentId, value) => {
-      if (subExamType === 'Numerical') {
-        setMarks(prev => ({...prev, [studentId]: value}));
-        setSubmissionData(prev => {
-          const existingIndex = prev.students_data.findIndex(
-            s => s.student_id === studentId,
-          );
-
-          const newStudentsData = [...prev.students_data];
-          const numericValue = parseInt(value) || 0;
-
-          if (existingIndex >= 0) {
-            newStudentsData[existingIndex] = {
-              student_id: studentId,
-              marks: numericValue,
-            };
-          } else {
-            newStudentsData.push({
-              student_id: studentId,
-              marks: numericValue,
-            });
-          }
-
-          return {
-            ...prev,
-            students_data: newStudentsData,
-          };
-        });
-      } else {
-        setAttendance(prev => ({...prev, [studentId]: value}));
-
-        setSubmissionData(prev => {
-          const existingIndex = prev.students_data.findIndex(
-            s => s.student_id === studentId,
-          );
-
-          const newStudentsData = [...prev.students_data];
-          const numericValue = value === 'Yes' ? true : false;
-
-          if (existingIndex >= 0) {
-            newStudentsData[existingIndex] = {
-              student_id: studentId,
-              marks: numericValue,
-            };
-          } else {
-            newStudentsData.push({
-              student_id: studentId,
-              marks: numericValue,
-            });
-          }
-
-          return {
-            ...prev,
-            students_data: newStudentsData,
-          };
-        });
-      }
-    },
-    [subExamType],
-  );
-  
-  
   useEffect(() => {
     getClasses();
-    getObject(selectedClass, selectedExam, selectedCategory);
-    getStudentsOfClass(selectedClass);
+    getObject(selectedClass, selectedExam);
     getExams(classId, subExamId);
   }, []);
   useEffect(() => {
@@ -238,66 +205,101 @@ const Exams = ({navigation}) => {
     }
   };
 
+  // console.log(subExamNewId, '========================');
+
+  const handleMarkChange = (studentId, value, examName) => {
+    setButton(true);
+    console.log(studentId, value, examName, '<< input values');
+    const studentIdNum = Number(studentId);
+    const exam = subExamNewId.find(item => item.name === examName);
+    const examId = exam?.id;
+
+    console.log(examId, '-------- sub_exam_id');
+
+    if (!examId) {
+      console.log('Exam not found for examName:', examName);
+      return;
+    }
+
+    // Update attendance (optional UI state)
+    setAttendance(prev => ({
+      ...prev,
+      [studentIdNum]: {
+        ...prev[studentIdNum],
+        [examName]: value,
+      },
+    }));
+
+    // Update submission data
+    setSubmissionData(prev => {
+      const updatedStudents = [...prev.students_data];
+      const studentIndex = updatedStudents.findIndex(
+        s => s.student_id === studentId,
+      );
+
+      if (studentIndex !== -1) {
+        const examIndex = updatedStudents[studentIndex].sub_exam.findIndex(
+          e => e.sub_exam_id === examId,
+        );
+
+        if (examIndex !== -1) {
+          // ✅ Update existing mark
+          updatedStudents[studentIndex].sub_exam[examIndex].marks = value;
+        } else {
+          // ✅ Push new sub_exam
+          updatedStudents[studentIndex].sub_exam.push({
+            sub_exam_id: examId,
+            marks: value,
+          });
+        }
+      } else {
+        // ✅ First time student
+        updatedStudents.push({
+          student_id: studentIdNum,
+          sub_exam: [{sub_exam_id: examId, marks: value}],
+        });
+      }
+
+      return {
+        ...prev,
+        students_data: updatedStudents,
+      };
+    });
+  };
+
   const renderItem = useCallback(
     ({item, index}) => {
-      // Find existing result
-      const studentResult = Class_Exam_Results.find(
-        result => 
-          Number(result.student_id) === Number(item.student_id) && 
-          Number(result.sub_exam_id) === Number(subExamId)
-      );
-  
-      let currentValue;
-      if (subExamType === 'Numerical') {
-        currentValue = marks[item.student_id] !== undefined 
-          ? marks[item.student_id] 
-          : studentResult 
-            ? studentResult.marks.toString() // Ensure string for input
-            : '';
-      } else {
-        // For boolean (Yes/No) marks
-        currentValue = attendance[item.student_id] !== undefined
-          ? attendance[item.student_id] // Use local state
-          : studentResult
-            ? studentResult.marks === "True" || studentResult.marks === true
-              ? 'Yes'
-              : 'No'
-            : ''; // Default empty
-      }
-  
       return (
         <StudentRowOne
           index={index + 1}
           item={item}
-          statuses={statuses}
           onAttendanceChange={handleMarkChange}
-          currentValue={currentValue}
-          // isEditing={isEditingExisting}
         />
       );
     },
-    [marks, attendance, statuses, handleMarkChange, Class_Exam_Results, subExamId, subExamType],
+    [
+      marks,
+      attendance,
+      statuses,
+      handleMarkChange,
+      Class_Exam_Results,
+      subExamId,
+      subExamType,
+    ],
   );
   const handleNew = abc => {
     setLoadingData(true);
     setSelectedClass(abc);
-    getStudentsOfClass(abc);
     const target = classes.find(cls => cls.class_name === abc);
     setClassId(target.id);
-    getObject(abc, selectedExam, selectedCategory);
+    getObject(abc, selectedExam);
     setLoadingData(false);
   };
   const handleExamType = abc => {
     setLoadingData(true);
     setSelectedExam(abc);
-    getObject(selectedClass, abc, selectedCategory);
+    getObject(selectedClass, abc);
     setLoadingData(false);
-  };
-  const handleExamCategory = abc => {
-    setLoadingData(true);
-    setSelectedCategory(abc);
-    getObject(selectedClass, selectedExam, abc);
-    setLoadingData(false);  
   };
 
   return (
@@ -351,70 +353,80 @@ const Exams = ({navigation}) => {
                 />
               </View>
             </View>
-            <View style={styles.item}>
-              <Text style={styles.selectionItem}>Select Category: </Text>
-              <View style={{flex: 1}}>
-                <CustomDropdown
-                  data={categories.map(cat => ({
-                    label: cat,
-                    value: cat,
-                  }))}
-                  selectedValue={selectedCategory}
-                  onValueChange={abc => handleExamCategory(abc)}
-                  placeholder="Select Category"
-                />
-              </View>
-            </View>
+            
+            <ScrollView>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={styles.tableHeader}>
+                  <View>
+                    <View style={{flexDirection: 'row'}}>
+                      <Text style={[styles.headerCell, styles.srCell]}>#</Text>
+                      <Text style={[styles.headerCell, styles.nameCell]}>
+                        Name
+                      </Text>
+                      <Text style={[styles.headerCell, {right: 30}]}>ID</Text>
+                      <Text style={[styles.headerCell, {right: 50}]}>
+                        Qaida/Nazra (Y/N)
+                      </Text>
+                      <Text style={[styles.headerCell, {right: 30}]}>
+                        Syllabus (Y/N)
+                      </Text>
+                      <Text style={[styles.headerCell, styles.idCell]}>
+                        Tajweed (30)
+                      </Text>
+                      <Text style={[styles.headerCell, styles.idCell]}>
+                        Reading (30)
+                      </Text>
+                      <Text style={[styles.headerCell, styles.idCell]}>
+                        Syllabus (40)
+                      </Text>
+                    </View>
+                    {result || result?.length > 0 ? (
+                      // <FlatList
+                      //   data={result}
+                      //   renderItem={renderItem}
+                      //   keyExtractor={item => item.student_id.toString()}
+                      //   contentContainerStyle={styles.listContent}
+                      //   initialNumToRender={10} // Render only 10 items initially
+                      //   maxToRenderPerBatch={10} // Add 10 items per batch
+                      //   windowSize={21} // Render items within 1 screen height
+                      //   removeClippedSubviews={true} // Unmount offscreen items (may help)
+                      // />
+                      <FlatList
+                        data={result}
+                        renderItem={renderItem}
+                        keyExtractor={item => item.student_id.toString()}
+                        ListEmptyComponent={
+                          <Text style={styles.noDataText}>
+                            {result?.length > 0
+                              ? 'No exam results available for this selection.'
+                              : 'No students found in this class.'}
+                          </Text>
+                        }
+                        scrollEnabled={false}
+                      />
+                    ) : (
+                      <View style={styles.loaderContainer}>
+                        <PencilLoader size={100} color="#5B4DBC" />
+                        <Text
+                          style={{color: 'black', fontSize: 16, marginTop: 10}}>
+                          Loading Table Data
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              </ScrollView>
+            </ScrollView>
 
-            <View style={styles.tableHeader}>
-              <Text style={[styles.headerCell, styles.srCell]}>Sr</Text>
-              <Text style={[styles.headerCell, styles.nameCell]}>Name</Text>
-              <Text style={[styles.headerCell, styles.idCell]}>ID</Text>
-              {statuses.map(status => (
-                <Text key={status} style={styles.headerCell}>
-                  {status}
-                </Text>
-              ))}
-            </View>
-
-            {(Class_Exam_Results || Class_Exam_Results.length > 0) ? (
-              <FlatList
-              data={students}
-              // data={studentss}
-              renderItem={renderItem}
-              keyExtractor={item => item.student_id.toString()}
-              contentContainerStyle={styles.listContent}
-              initialNumToRender={10} // Render only 10 items initially
-              maxToRenderPerBatch={10} // Add 10 items per batch
-              windowSize={21} // Render items within 1 screen height
-              removeClippedSubviews={true} // Unmount offscreen items (may help)
-            />
-              
-            ): (
-              <View style={styles.loaderContainer}>
-                <PencilLoader size={100} color="#5B4DBC" />
-                <Text style={{color: 'black', fontSize: 16, marginTop: 10}}>
-                  Loading Table Data
-                </Text>
-              </View>
-            )}
             <TouchableOpacity
               onPress={handleSubmit}
+              disabled={!button || sendLoading}
               style={[
                 styles.submitButton,
-                // submissionData.students_data.length < students.length ||
-                (submissionData.sub_exam_id == null ||
-                  submissionData.username == '') &&
-                  styles.disabledSubmitButton,
-              ]}
-              disabled={
-                // submissionData.students_data.length < students ||
-                submissionData.sub_exam_id == null ||
-                submissionData.username == '' ||
-                sendLoading
-              }>
-              <Text style={{color: 'white'}}>
-                {sendLoading ? 'Submitting...' : 'Submit Attendance'}
+                (!button || sendLoading) && styles.disabledSubmitButton,
+              ]}>
+              <Text style={styles.submitButtonText}>
+                {sendLoading ? 'Submitting...' : 'Submit Exam'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -487,11 +499,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   tableHeader: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#5B4DBC',
     paddingVertical: 12,
-    marginTop: 16,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 5,
+    marginBottom: 8,
+    width: 1000,
   },
   headerCell: {
     flex: 1,
@@ -509,7 +521,7 @@ const styles = StyleSheet.create({
     textAlign: 'left',
   },
   idCell: {
-    flex: 1.5,
+    flex: 1,
     paddingLeft: 16,
     textAlign: 'left',
   },

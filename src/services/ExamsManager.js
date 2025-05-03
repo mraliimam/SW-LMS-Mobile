@@ -27,7 +27,7 @@ export const addExamRecord = async data => {
       body: JSON.stringify(data),
     });
     const data1 = await response.json();
-    // console.log('response of Getattendance:>>',data1)
+    console.log('response of Getattendance:>>',data1)
     return data1;
   } catch (error) {
     console.error('Network or server error:', error.message);

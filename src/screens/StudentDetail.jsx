@@ -1,26 +1,33 @@
-import React, { useCallback, useState, useEffect } from 'react'
-import { View, Text, StyleSheet,Image, TouchableOpacity, Animated, Platform } from 'react-native'
-import { useRoute, useNavigation } from '@react-navigation/native'
-import { SharedElement } from 'react-navigation-shared-element'
-import AttendanceChart from '../components/AttendanceChart'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { getStudentAttendance } from '../api/Signup'
-import { DatePickerModal } from 'react-native-paper-dates'
-import { Provider as PaperProvider } from 'react-native-paper'
-import { registerTranslation } from 'react-native-paper-dates'
-import PencilLoader from '../components/UI/PencilLoader'
-import NetInfo from '@react-native-community/netinfo'
-import AsyncStorage from '@react-native-async-storage/async-storage'
+import React, {useCallback, useState, useEffect} from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  Animated,
+  Platform,
+} from 'react-native';
+import {useRoute, useNavigation} from '@react-navigation/native';
+import {SharedElement} from 'react-navigation-shared-element';
+import AttendanceChart from '../components/AttendanceChart';
+import {SafeAreaView} from 'react-native-safe-area-context';
+import {getStudentAttendance} from '../api/Signup';
+import {DatePickerModal} from 'react-native-paper-dates';
+import {Provider as PaperProvider} from 'react-native-paper';
+import {registerTranslation} from 'react-native-paper-dates';
+import PencilLoader from '../components/UI/PencilLoader';
+import NetInfo from '@react-native-community/netinfo';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 registerTranslation('en', {
   save: 'Save',
   selectSingle: 'Select date',
   selectMultiple: 'Select dates',
   selectRange: 'Select period',
-  notAccordingToDateFormat: (inputFormat) =>
-    `Date format must be ${inputFormat}`,
-  mustBeHigherThan: (date) => `Must be later then ${date}`,
-  mustBeLowerThan: (date) => `Must be earlier then ${date}`,
+  notAccordingToDateFormat: inputFormat => `Date format must be ${inputFormat}`,
+  mustBeHigherThan: date => `Must be later then ${date}`,
+  mustBeLowerThan: date => `Must be earlier then ${date}`,
   mustBeBetween: (startDate, endDate) =>
     `Must be between ${startDate} - ${endDate}`,
   dateIsDisabled: 'Day is not allowed',
@@ -29,83 +36,90 @@ registerTranslation('en', {
   typeInDate: 'Type in date',
   pickDateFromCalendar: 'Pick date from calendar',
   close: 'Close',
-})
+});
 
-const ATTENDANCE_CACHE_KEY = 'STUDENT_ATTENDANCE_'
-const CACHE_EXPIRY = 24 * 60 * 60 * 1000 // 24 hours
+const ATTENDANCE_CACHE_KEY = 'STUDENT_ATTENDANCE_';
+const CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 24 hours
 
 const StudentDetail = () => {
-  const route = useRoute()
-  const navigation = useNavigation()
-  const { student } = route.params
-  const scrollY = new Animated.Value(100)
+  const route = useRoute();
+  const navigation = useNavigation();
+  const {student} = route.params;
+  const scrollY = new Animated.Value(100);
 
-  const [attendanceData, setAttendanceData] = useState([])
-  const [dateRange, setDateRange] = useState('30') // '7', '30', or 'custom'
-  const [visible, setVisible] = useState(false)
-  const [range, setRange] = useState({ 
-    startDate: undefined, 
-    endDate: undefined 
-  })
-  const [loading, setLoading] = useState(true)
+  const [attendanceData, setAttendanceData] = useState([]);
+  const [dateRange, setDateRange] = useState('30'); // '7', '30', or 'custom'
+  const [visible, setVisible] = useState(false);
+  const [range, setRange] = useState({
+    startDate: undefined,
+    endDate: undefined,
+  });
+  const [loading, setLoading] = useState(true);
 
   const onDismiss = useCallback(() => {
-    setVisible(false)
-  }, [setVisible])
+    setVisible(false);
+  }, [setVisible]);
 
   const onConfirm = useCallback(
-    ({ startDate, endDate }) => {
-      setVisible(false)
-      setRange({ startDate, endDate })
+    ({startDate, endDate}) => {
+      setVisible(false);
+      setRange({startDate, endDate});
       if (startDate && endDate) {
-        fetchAttendanceData(0, startDate, endDate)
+        fetchAttendanceData(0, startDate, endDate);
       }
     },
-    [setVisible]
-  )
+    [setVisible],
+  );
 
-  const fetchAttendanceData = async (days, customStart = null, customEnd = null) => {
-    let fromDate, toDate
+  const fetchAttendanceData = async (
+    days,
+    customStart = null,
+    customEnd = null,
+  ) => {
+    let fromDate, toDate;
 
     if (customStart && customEnd) {
-      fromDate = customStart
-      toDate = customEnd
+      fromDate = customStart;
+      toDate = customEnd;
     } else {
-      toDate = new Date()
-      fromDate = new Date()
-      fromDate.setDate(toDate.getDate() - days)
+      toDate = new Date();
+      fromDate = new Date();
+      fromDate.setDate(toDate.getDate() - days);
     }
 
     const data = {
       studentID: student.student_id,
       dateFrom: fromDate.toISOString().split('T')[0],
-      dateTo: toDate.toISOString().split('T')[0]
-    }
+      dateTo: toDate.toISOString().split('T')[0],
+    };
 
     try {
       // Check network connectivity
-      const netInfo = await NetInfo.fetch()
-      let attendanceData
-      const cacheKey = `${ATTENDANCE_CACHE_KEY}${student.student_id}_${data.dateFrom}_${data.dateTo}`
+      const netInfo = await NetInfo.fetch();
+      let attendanceData;
+      const cacheKey = `${ATTENDANCE_CACHE_KEY}${student.student_id}_${data.dateFrom}_${data.dateTo}`;
 
       if (netInfo.isConnected) {
         // If online, fetch from API
-        const response = await getStudentAttendance(data)
+        const response = await getStudentAttendance(data);
         if (response.Student_Attendance) {
-          attendanceData = response.Student_Attendance
+          attendanceData = response.Student_Attendance;
           // Cache the attendance data
-          await AsyncStorage.setItem(cacheKey, JSON.stringify({
-            data: attendanceData,
-            timestamp: Date.now()
-          }))
+          await AsyncStorage.setItem(
+            cacheKey,
+            JSON.stringify({
+              data: attendanceData,
+              timestamp: Date.now(),
+            }),
+          );
         }
       } else {
         // If offline, try to get cached data
-        const cachedData = await AsyncStorage.getItem(cacheKey)
+        const cachedData = await AsyncStorage.getItem(cacheKey);
         if (cachedData) {
-          const { data: cachedAttendance, timestamp } = JSON.parse(cachedData)
+          const {data: cachedAttendance, timestamp} = JSON.parse(cachedData);
           if (Date.now() - timestamp < CACHE_EXPIRY) {
-            attendanceData = cachedAttendance
+            attendanceData = cachedAttendance;
           }
         }
       }
@@ -113,45 +127,61 @@ const StudentDetail = () => {
       if (attendanceData) {
         const formattedData = attendanceData.map(item => ({
           date: item.date_added,
-          status: item.status === 'P' ? 'present' : 
-                 item.status === 'A' ? 'absent' : 
-                 item.status === 'L' ? 'late' : 
-                 item.status === 'X' ? 'holiday' :
-                 item.status === 'H' ? 'holiday' :
-                 item.status === 'E' ? 'excused' : 'absent'
-        }))
-        setAttendanceData(formattedData)
+          status:
+            item.status === 'P'
+              ? 'present'
+              : item.status === 'A'
+              ? 'absent'
+              : item.status === 'L'
+              ? 'late'
+              : item.status === 'X'
+              ? 'holiday'
+              : item.status === 'H'
+              ? 'holiday'
+              : item.status === 'E'
+              ? 'excused'
+              : 'absent',
+        }));
+        setAttendanceData(formattedData);
       } else {
         // If no data available (online or cached), show empty state
-        setAttendanceData([])
+        setAttendanceData([]);
       }
     } catch (error) {
-      console.error('Error fetching attendance:', error)
+      console.error('Error fetching attendance:', error);
       // Try to get cached data as fallback
       try {
-        const cacheKey = `${ATTENDANCE_CACHE_KEY}${student.student_id}_${data.dateFrom}_${data.dateTo}`
-        const cachedData = await AsyncStorage.getItem(cacheKey)
+        const cacheKey = `${ATTENDANCE_CACHE_KEY}${student.student_id}_${data.dateFrom}_${data.dateTo}`;
+        const cachedData = await AsyncStorage.getItem(cacheKey);
         if (cachedData) {
-          const { data: cachedAttendance } = JSON.parse(cachedData)
+          const {data: cachedAttendance} = JSON.parse(cachedData);
           const formattedData = cachedAttendance.map(item => ({
             date: item.date_added,
-            status: item.status === 'P' ? 'present' : 
-                   item.status === 'A' ? 'absent' : 
-                   item.status === 'L' ? 'late' : 
-                   item.status === 'X' ? 'holiday' :
-                   item.status === 'H' ? 'holiday' :
-                   item.status === 'E' ? 'excused' : 'absent'
-          }))
-          setAttendanceData(formattedData)
+            status:
+              item.status === 'P'
+                ? 'present'
+                : item.status === 'A'
+                ? 'absent'
+                : item.status === 'L'
+                ? 'late'
+                : item.status === 'X'
+                ? 'holiday'
+                : item.status === 'H'
+                ? 'holiday'
+                : item.status === 'E'
+                ? 'excused'
+                : 'absent',
+          }));
+          setAttendanceData(formattedData);
         }
       } catch (cacheError) {
-        console.error('Error reading cached attendance data:', cacheError)
-        setAttendanceData([])
+        console.error('Error reading cached attendance data:', cacheError);
+        setAttendanceData([]);
       }
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   // Add network status effect
   useEffect(() => {
@@ -159,73 +189,115 @@ const StudentDetail = () => {
       if (state.isConnected) {
         // When connection is restored, refresh the attendance data
         if (dateRange === 'custom' && range.startDate && range.endDate) {
-          fetchAttendanceData(0, range.startDate, range.endDate)
+          fetchAttendanceData(0, range.startDate, range.endDate);
         } else {
-          fetchAttendanceData(dateRange === '7' ? 7 : 30)
+          fetchAttendanceData(dateRange === '7' ? 7 : 30);
         }
       }
-    })
+    });
 
-    return () => unsubscribe()
-  }, [dateRange, range])
+    return () => unsubscribe();
+  }, [dateRange, range]);
 
   useEffect(() => {
     if (dateRange === 'custom' && range.startDate && range.endDate) {
-      fetchAttendanceData(0, range.startDate, range.endDate)
+      fetchAttendanceData(0, range.startDate, range.endDate);
     } else {
-      fetchAttendanceData(dateRange === '7' ? 7 : 30)
+      fetchAttendanceData(dateRange === '7' ? 7 : 30);
     }
-  }, [dateRange, student.student_id, range])
+  }, [dateRange, student.student_id, range]);
 
+  // const renderExamResults = useCallback(() => {
+  //   if (!student.exams_result || student.exams_result.length === 0) {
+  //     return <Text style={styles.noExams}>No exam results available</Text>;
+  //   }
+  //   return student.exams_result.map((exam, index) => (
+  //     <View key={index} style={styles.examContainer}>
+  //       <Text style={styles.examName}>{exam.main_exam_name}</Text>
+  //       {exam.sub_exams.map((subExam, subIndex) => (
+  //         <View key={subIndex} style={styles.subExamContainer}>
+  //           <Text style={styles.subExamName}>{subExam.sub_exam_name}</Text>
+  //           <Text style={styles.subExamDetails}>
+  //             Date: {subExam.date_added} | Marks: {subExam.marks}
+  //           </Text>
+  //         </View>
+  //       ))}
+  //     </View>
+  //   ));
+  // }, [student.exams_result]);
   const renderExamResults = useCallback(() => {
     if (!student.exams_result || student.exams_result.length === 0) {
-      return <Text style={styles.noExams}>No exam results available</Text>
+      return <Text style={styles.noExams}>No exam results available</Text>;
     }
-    return student.exams_result.map((exam, index) => (
-      <View key={index} style={styles.examContainer}>
-        <Text style={styles.examName}>{exam.main_exam_name}</Text>
-        {exam.sub_exams.map((subExam, subIndex) => (
-          <View key={subIndex} style={styles.subExamContainer}>
-            <Text style={styles.subExamName}>{subExam.sub_exam_name}</Text>
-            <Text style={styles.subExamDetails}>
-              Date: {subExam.date_added} | Marks: {subExam.marks}
-            </Text>
-          </View>
-        ))}
-      </View>
-    ))
-  }, [student.exams_result])
+
+    const renderedNames = new Set();
+
+    return student.exams_result.map((exam, index) => {
+      const showExamName = !renderedNames.has(exam.main_exam_name);
+      if (showExamName) {
+        renderedNames.add(exam.main_exam_name);
+      }
+
+      return (
+        <View key={index} style={styles.examContainer}>
+          {showExamName && (
+            <Text style={styles.examName}>{exam.main_exam_name}</Text>
+          )}
+          {exam.sub_exams.map((subExam, subIndex) => (
+            <View key={subIndex} style={styles.subExamContainer}>
+              <Text style={styles.subExamName}>{subExam.sub_exam_name}</Text>
+              <Text style={styles.subExamDetails}>
+                Date: {subExam.date_added} | Marks: {subExam.marks}
+              </Text>
+            </View>
+          ))}
+        </View>
+      );
+    });
+  }, [student.exams_result]);
 
   const renderDateFilters = () => (
     <View style={styles.filterContainer}>
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[styles.filterButton, dateRange === '7' && styles.activeFilter]}
         onPress={() => setDateRange('7')}>
-        <Text style={[
-          styles.filterText, 
-          dateRange === '7' && styles.activeFilterText
-        ]}>7 Days</Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity 
-        style={[styles.filterButton, dateRange === '30' && styles.activeFilter]}
-        onPress={() => setDateRange('30')}>
-        <Text style={[
-          styles.filterText, 
-          dateRange === '30' && styles.activeFilterText
-        ]}>30 Days</Text>
+        <Text
+          style={[
+            styles.filterText,
+            dateRange === '7' && styles.activeFilterText,
+          ]}>
+          7 Days
+        </Text>
       </TouchableOpacity>
 
-      <TouchableOpacity 
-        style={[styles.filterButton, dateRange === 'custom' && styles.activeFilter]}
+      <TouchableOpacity
+        style={[styles.filterButton, dateRange === '30' && styles.activeFilter]}
+        onPress={() => setDateRange('30')}>
+        <Text
+          style={[
+            styles.filterText,
+            dateRange === '30' && styles.activeFilterText,
+          ]}>
+          30 Days
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[
+          styles.filterButton,
+          dateRange === 'custom' && styles.activeFilter,
+        ]}
         onPress={() => {
-          setDateRange('custom')
-          setVisible(true)
+          setDateRange('custom');
+          setVisible(true);
         }}>
-        <Text style={[
-          styles.filterText, 
-          dateRange === 'custom' && styles.activeFilterText
-        ]}>Custom</Text>
+        <Text
+          style={[
+            styles.filterText,
+            dateRange === 'custom' && styles.activeFilterText,
+          ]}>
+          Custom
+        </Text>
       </TouchableOpacity>
       <DatePickerModal
         locale="en"
@@ -236,30 +308,33 @@ const StudentDetail = () => {
         endDate={range.endDate}
         onConfirm={onConfirm}
         validRange={{
-          startDate: new Date(2022, 1, 1),  
-          endDate: new Date(),  
+          startDate: new Date(2022, 1, 1),
+          endDate: new Date(),
         }}
       />
     </View>
-  )
+  );
 
   return (
     <PaperProvider>
       <Animated.ScrollView
-      style={styles.scrollView}
-      onScroll={Animated.event(
-        [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-        { useNativeDriver: true }
-      )}
-      scrollEventThrottle={100}
-    >
-      <SafeAreaView style={styles.container}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          {/* <Icon name="arrow-back" size={24} color="#5B4DBC" /> */}
-          <Image source={require('../assets/arrow.png')} style={{ width: 24, height: 24 , tintColor: '#5B4DBC'}} />
-        </TouchableOpacity>
-        
-       
+        style={styles.scrollView}
+        onScroll={Animated.event(
+          [{nativeEvent: {contentOffset: {y: scrollY}}}],
+          {useNativeDriver: true},
+        )}
+        scrollEventThrottle={100}>
+        <SafeAreaView style={styles.container}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}>
+            {/* <Icon name="arrow-back" size={24} color="#5B4DBC" /> */}
+            <Image
+              source={require('../assets/arrow.png')}
+              style={{width: 24, height: 24, tintColor: '#5B4DBC'}}
+            />
+          </TouchableOpacity>
+
           <View style={styles.header}>
             <SharedElement id={`student.${student.student_id}.avatar`}>
               <View style={styles.avatarContainer}>
@@ -277,28 +352,61 @@ const StudentDetail = () => {
           <View style={styles.infoContainer}>
             <View style={styles.infoRow}>
               {/* <Icon name="person" size={20} color="#666" style={styles.infoIcon} /> */}
-              <Image source={require('../assets/usericon.png')} style={{ width: 19, height:19 , tintColor: '#666',marginRight:10}} />
+              <Image
+                source={require('../assets/usericon.png')}
+                style={{
+                  width: 19,
+                  height: 19,
+                  tintColor: '#666',
+                  marginRight: 10,
+                }}
+              />
               <Text style={styles.infoLabel}>Father's Name:</Text>
               <Text style={styles.infoValue}>{student.father_name}</Text>
             </View>
             <View style={styles.infoRow}>
               {/* <Icon name="calendar" size={20} color="#666" style={styles.infoIcon} /> */}
-              <Image source={require('../assets/calendar.png')} style={{ width: 19, height:19 , tintColor: '#666',marginRight:10}} />
+              <Image
+                source={require('../assets/calendar.png')}
+                style={{
+                  width: 19,
+                  height: 19,
+                  tintColor: '#666',
+                  marginRight: 10,
+                }}
+              />
               <Text style={styles.infoLabel}>Date of Birth:</Text>
               <Text style={styles.infoValue}>{student.dob}</Text>
             </View>
             <View style={styles.infoRow}>
-              <Image source={require('../assets/graduate-hat.png')} style={{ width: 27, height:27 , tintColor: '#666',marginRight:10,marginLeft:-5}} />
+              <Image
+                source={require('../assets/graduate-hat.png')}
+                style={{
+                  width: 27,
+                  height: 27,
+                  tintColor: '#666',
+                  marginRight: 10,
+                  marginLeft: -5,
+                }}
+              />
               <Text style={styles.infoLabel}>Current Class:</Text>
               <Text style={styles.infoValue}>{student.current_class}</Text>
             </View>
             <View style={styles.infoRow}>
-              <Image source={require('../assets/phone.png')} style={{ width: 19, height:19 , tintColor: '#666',marginRight:10}} />
+              <Image
+                source={require('../assets/phone.png')}
+                style={{
+                  width: 19,
+                  height: 19,
+                  tintColor: '#666',
+                  marginRight: 10,
+                }}
+              />
               <Text style={styles.infoLabel}>Phone Number:</Text>
               <Text style={styles.infoValue}>{student.phone_number}</Text>
             </View>
           </View>
-     
+
           <View style={styles.sectionContainer}>
             <Text style={styles.sectionTitle}>Exam Results</Text>
             {renderExamResults()}
@@ -310,22 +418,22 @@ const StudentDetail = () => {
               <Text style={styles.passedClasses}>{student.passed_classes}</Text>
             </View>
           )}
-         
+
           <View style={styles.chartContainer}>
             {renderDateFilters()}
             {loading ? (
-             <View style={styles.centerContainer}>
-             <PencilLoader size={200} color="#5B4DBC" />
-             </View>   ) : (
-
+              <View style={styles.centerContainer}>
+                <PencilLoader size={200} color="#5B4DBC" />
+              </View>
+            ) : (
               <AttendanceChart attendanceData={attendanceData} />
             )}
           </View>
-      </SafeAreaView>  
-        </Animated.ScrollView>
+        </SafeAreaView>
+      </Animated.ScrollView>
     </PaperProvider>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -336,7 +444,7 @@ const styles = StyleSheet.create({
     // flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    color: "#5B4DBC"
+    color: '#5B4DBC',
   },
   scrollView: {
     flex: 1,
@@ -346,10 +454,10 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   backButton: {
-    left :10,
+    left: 10,
     width: 40,
     height: 40,
-    backgroundColor: "white",
+    backgroundColor: 'white',
     borderRadius: 100,
     justifyContent: 'center',
     alignItems: 'center',
@@ -366,16 +474,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#5B4DBC',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth:1,
-    borderColor:'white',
-    borderRadius:100,
+    borderWidth: 1,
+    borderColor: 'white',
+    borderRadius: 100,
     marginBottom: 10,
   },
   avatarText: {
     fontSize: 36,
     fontWeight: 'bold',
     color: '#FFFFFF',
-
   },
   studentName: {
     fontSize: 24,
@@ -393,7 +500,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 15,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
@@ -424,7 +531,7 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     padding: 15,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
@@ -479,8 +586,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#5B4DBC',
     borderColor: 'white',
     borderWidth: 2,
-
-    
   },
   activeFilter: {
     // borderColor: 'black',
@@ -505,7 +610,6 @@ const styles = StyleSheet.create({
   activeFilterText: {
     color: 'black',
   },
-})
+});
 
-export default StudentDetail
-
+export default StudentDetail;

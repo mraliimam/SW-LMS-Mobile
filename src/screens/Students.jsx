@@ -1,34 +1,32 @@
-import React, { useEffect, useState, useCallback, memo } from 'react'
-import { 
-  View, 
-  Text, 
-  FlatList, 
-  StyleSheet, 
-  TouchableOpacity, 
-  TextInput, 
+import React, {useEffect, useState, useCallback, memo} from 'react';
+import {
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  TouchableOpacity,
+  TextInput,
   Dimensions,
   Image,
   RefreshControl,
-} from 'react-native'
+} from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
-import { useNavigation, useFocusEffect } from '@react-navigation/native'
-import { SharedElement } from 'react-navigation-shared-element'
-import { getStudents, getAttendance } from '../api/Signup'
-import AsyncStorage from '@react-native-async-storage/async-storage'
-import PencilLoader from '../components/UI/PencilLoader'
-import CustomDropdown from '../components/CustomDropdown'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { format } from 'date-fns'
+import {useNavigation, useFocusEffect} from '@react-navigation/native';
+import {SharedElement} from 'react-navigation-shared-element';
+import {getStudents, getAttendance} from '../api/Signup';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import PencilLoader from '../components/UI/PencilLoader';
+import CustomDropdown from '../components/CustomDropdown';
+import {SafeAreaView} from 'react-native-safe-area-context';
+import {format} from 'date-fns';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window')
+const {width: SCREEN_WIDTH} = Dimensions.get('window');
 
-const CACHE_KEY = 'STUDENTS_DATA'
-const TEACHERS_CACHE_KEY = 'TEACHERS_DATA'
-const CACHE_EXPIRY = 24 * 60 * 60 * 1000
-const StudentItem = memo(({ item, onPress }) => (
-  <TouchableOpacity
-    style={styles.studentItem}
-    onPress={() => onPress(item)}>
+const CACHE_KEY = 'STUDENTS_DATA';
+const TEACHERS_CACHE_KEY = 'TEACHERS_DATA';
+const CACHE_EXPIRY = 24 * 60 * 60 * 1000;
+const StudentItem = memo(({item, onPress}) => (
+  <TouchableOpacity style={styles.studentItem} onPress={() => onPress(item)}>
     <SharedElement id={`student.${item.student_id}.avatar`}>
       <View style={styles.avatarContainer}>
         <Text style={styles.avatarText}>{item.name[0]}</Text>
@@ -43,18 +41,18 @@ const StudentItem = memo(({ item, onPress }) => (
       </SharedElement>
     </View>
   </TouchableOpacity>
-))
+));
 
 const Students = () => {
-  const [isLoading, setIsLoading] = useState(true)
-  const [students, setStudents] = useState([])
-  const [filteredStudents, setFilteredStudents] = useState([])
-  const [searchQuery, setSearchQuery] = useState('')
-  const [error, setError] = useState(null)
-  const navigation = useNavigation()
-  const [classes, setClasses] = useState([])
-  const [selectedClass, setSelectedClass] = useState('')
-  const [refreshing, setRefreshing] = useState(false)
+  const [isLoading, setIsLoading] = useState(true);
+  const [students, setStudents] = useState([]);
+  const [filteredStudents, setFilteredStudents] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [error, setError] = useState(null);
+  const navigation = useNavigation();
+  const [classes, setClasses] = useState([]);
+  const [selectedClass, setSelectedClass] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
   const [username, setUsername] = useState('');
   const [attendanceData, setAttendanceData] = useState([]);
@@ -83,7 +81,7 @@ const Students = () => {
     async (user, date) => {
       setIsLoading(true);
       try {
-        const response = await getAttendance({ username: user, dateFor: date });
+        const response = await getAttendance({username: user, dateFor: date});
         // console.log('response:>',response)
         if (response && response.Classes) {
           setAttendanceData(response.Classes);
@@ -100,7 +98,7 @@ const Students = () => {
         setIsLoading(false);
       }
     },
-    [selectedClass]
+    [selectedClass],
   );
 
   const fetchTeachersData = useCallback(async () => {
@@ -109,22 +107,25 @@ const Students = () => {
       let teachersData;
 
       if (netInfo.isConnected) {
-        const response = await getAttendance({ 
-          username: await AsyncStorage.getItem('username'), 
-          dateFor: format(new Date(), 'yyyy-MM-dd') 
+        const response = await getAttendance({
+          username: await AsyncStorage.getItem('username'),
+          dateFor: format(new Date(), 'yyyy-MM-dd'),
         });
-        
+
         if (response && response.Classes) {
           teachersData = response.Classes;
-          await AsyncStorage.setItem(TEACHERS_CACHE_KEY, JSON.stringify({
-            data: teachersData,
-            timestamp: Date.now()
-          }));
+          await AsyncStorage.setItem(
+            TEACHERS_CACHE_KEY,
+            JSON.stringify({
+              data: teachersData,
+              timestamp: Date.now(),
+            }),
+          );
         }
       } else {
         const cachedData = await AsyncStorage.getItem(TEACHERS_CACHE_KEY);
         if (cachedData) {
-          const { data, timestamp } = JSON.parse(cachedData);
+          const {data, timestamp} = JSON.parse(cachedData);
           if (Date.now() - timestamp < CACHE_EXPIRY) {
             teachersData = data;
           }
@@ -140,7 +141,7 @@ const Students = () => {
       try {
         const cachedData = await AsyncStorage.getItem(TEACHERS_CACHE_KEY);
         if (cachedData) {
-          const { data } = JSON.parse(cachedData);
+          const {data} = JSON.parse(cachedData);
           // console.log('Setting cached teachers data:', data);
           setTeachersData(data);
         }
@@ -154,69 +155,87 @@ const Students = () => {
     fetchTeachersData();
   }, [fetchTeachersData]);
 
-  const fetchStudents = useCallback(async (forceRefresh = false) => {
-    if (!initialLoadComplete) {
-      setIsLoading(true);
-    }
+  const fetchStudents = useCallback(
+    async (forceRefresh = false) => {
+      if (!initialLoadComplete) {
+        setIsLoading(true);
+      }
 
-    let hasCachedData = false;
-    try {
-      const cachedData = await AsyncStorage.getItem(CACHE_KEY);
-      if (cachedData) {
-        const { data, timestamp } = JSON.parse(cachedData);
-        if (Date.now() - timestamp < CACHE_EXPIRY) {
-          setStudents(data);
-          const uniqueClasses = [...new Set(data.map(student => student.current_class))];
-          setClasses(uniqueClasses);
-          setSelectedClass(prevClass => prevClass || uniqueClasses[0]);
-          setFilteredStudents(data.filter(student => 
-            student.current_class === (selectedClass || uniqueClasses[0])
-          ));
-          hasCachedData = true;
-          setIsLoading(false);
+      let hasCachedData = false;
+      try {
+        const cachedData = await AsyncStorage.getItem(CACHE_KEY);
+        if (cachedData) {
+          const {data, timestamp} = JSON.parse(cachedData);
+          if (Date.now() - timestamp < CACHE_EXPIRY) {
+            setStudents(data);
+            const uniqueClasses = [
+              ...new Set(data.map(student => student.current_class)),
+            ];
+            setClasses(uniqueClasses);
+            setSelectedClass(prevClass => prevClass || uniqueClasses[0]);
+            setFilteredStudents(
+              data.filter(
+                student =>
+                  student.current_class === (selectedClass || uniqueClasses[0]),
+              ),
+            );
+            hasCachedData = true;
+            setIsLoading(false);
+          }
         }
+      } catch (cacheError) {
+        console.error('Error reading cached data:', cacheError);
       }
-    } catch (cacheError) {
-      console.error('Error reading cached data:', cacheError);
-    }
 
-    try {
-      const netInfo = await NetInfo.fetch();
-      
-      if (netInfo.isConnected) {
-        const storedUsername = await AsyncStorage.getItem('username');
-        const response = await getStudents(storedUsername || '');
-        
-        if (response && response.Records) {
-          const studentsData = response.Records;
-          await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({
-            data: studentsData,
-            timestamp: Date.now()
-          }));
-          
-          setStudents(studentsData);
-          const uniqueClasses = [...new Set(studentsData.map(student => student.current_class))];
-          setClasses(uniqueClasses);
-          setSelectedClass(prevClass => prevClass || uniqueClasses[0]);
-          setFilteredStudents(studentsData.filter(student => 
-            student.current_class === (selectedClass || uniqueClasses[0])
-          ));
-          setError(null);
+      try {
+        const netInfo = await NetInfo.fetch();
+
+        if (netInfo.isConnected) {
+          const storedUsername = await AsyncStorage.getItem('username');
+          const response = await getStudents(storedUsername || '');
+
+          if (response && response.Records) {
+            const studentsData = response.Records;
+            await AsyncStorage.setItem(
+              CACHE_KEY,
+              JSON.stringify({
+                data: studentsData,
+                timestamp: Date.now(),
+              }),
+            );
+
+            setStudents(studentsData);
+            const uniqueClasses = [
+              ...new Set(studentsData.map(student => student.current_class)),
+            ];
+            setClasses(uniqueClasses);
+            setSelectedClass(prevClass => prevClass || uniqueClasses[0]);
+            setFilteredStudents(
+              studentsData.filter(
+                student =>
+                  student.current_class === (selectedClass || uniqueClasses[0]),
+              ),
+            );
+            setError(null);
+          }
+        } else if (!hasCachedData) {
+          setError('No internet connection available');
         }
-      } else if (!hasCachedData) {
-        setError('No internet connection available');
+      } catch (error) {
+        console.error('Error fetching students:', error);
+        if (!hasCachedData) {
+          setError(
+            'Failed to load students. Please check your internet connection.',
+          );
+        }
+      } finally {
+        setIsLoading(false);
+        setRefreshing(false);
+        setInitialLoadComplete(true);
       }
-    } catch (error) {
-      console.error('Error fetching students:', error);
-      if (!hasCachedData) {
-        setError('Failed to load students. Please check your internet connection.');
-      }
-    } finally {
-      setIsLoading(false);
-      setRefreshing(false);
-      setInitialLoadComplete(true);
-    }
-  }, [selectedClass, initialLoadComplete]);
+    },
+    [selectedClass, initialLoadComplete],
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -224,39 +243,44 @@ const Students = () => {
       return () => {
         // Cleanup if needed
       };
-    }, [fetchStudents])
-  )
+    }, [fetchStudents]),
+  );
 
   useEffect(() => {
-    const searchFiltered = students.filter(student =>
-      student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      student.student_id.includes(searchQuery)
-    )
-    
+    const searchFiltered = students.filter(
+      student =>
+        student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        student.student_id.includes(searchQuery),
+    );
+
     const classFiltered = searchQuery
       ? searchFiltered
-      : students.filter(student => student.current_class === selectedClass)
-    
-    setFilteredStudents(classFiltered)
-  }, [searchQuery, students, selectedClass])
+      : students.filter(student => student.current_class === selectedClass);
 
-  const navigateToStudentDetail = useCallback((student) => {
-    navigation.navigate('StudentDetail', { student })
-  }, [navigation])
+    setFilteredStudents(classFiltered);
+  }, [searchQuery, students, selectedClass]);
 
-  const renderStudentItem = useCallback(({ item }) => (
-    <StudentItem item={item} onPress={navigateToStudentDetail} />
-  ), [navigateToStudentDetail])
+  const navigateToStudentDetail = useCallback(
+    student => {
+      navigation.navigate('StudentDetail', {student});
+    },
+    [navigation],
+  );
 
-  const handleClassChange = useCallback((itemValue) => {
-    setSelectedClass(itemValue)
-    setSearchQuery('')
-  }, [])
+  const renderStudentItem = useCallback(
+    ({item}) => <StudentItem item={item} onPress={navigateToStudentDetail} />,
+    [navigateToStudentDetail],
+  );
+
+  const handleClassChange = useCallback(itemValue => {
+    setSelectedClass(itemValue);
+    setSearchQuery('');
+  }, []);
 
   const onRefresh = useCallback(() => {
-    setRefreshing(true)
-    fetchStudents(true)
-  }, [fetchStudents])
+    setRefreshing(true);
+    fetchStudents(true);
+  }, [fetchStudents]);
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener(state => {
@@ -278,15 +302,22 @@ const Students = () => {
     );
   }
 
-  
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Image source={require('../assets/arrow.png')} style={{ width: 24, height: 24 , tintColor: 'white'}} />
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}>
+          <Image
+            source={require('../assets/arrow.png')}
+            style={{width: 24, height: 24, tintColor: 'white'}}
+          />
         </TouchableOpacity>
         <View style={styles.searchContainer}>
-          <Image source={require('../assets/search.png')} style={{ width: 24, height: 24 , marginRight: 8}} />
+          <Image
+            source={require('../assets/search.png')}
+            style={{width: 24, height: 24, marginRight: 8}}
+          />
           <TextInput
             style={styles.searchInput}
             placeholder="Search by name or ID"
@@ -298,13 +329,15 @@ const Students = () => {
       </View>
       <View style={styles.pickerContainer}>
         <CustomDropdown
-          data={classes.map((className) => {
-            const classData = teachersData.find(c => c.class_name === className);
+          data={classes.map(className => {
+            const classData = teachersData.find(
+              c => c.class_name === className,
+            );
             // console.log('Class data for', className, ':', classData);
             return {
               label: className,
               value: className,
-              teacher: classData ? classData.teacher_name : ''
+              teacher: classData ? classData.teacher_name : '',
             };
           })}
           selectedValue={selectedClass}
@@ -316,11 +349,11 @@ const Students = () => {
         <View style={styles.centerContainer}>
           <PencilLoader size={100} color="#5B4DBC" />
         </View>
-      ) : (      
+      ) : (
         <FlatList
           data={filteredStudents}
           renderItem={renderStudentItem}
-          keyExtractor={(item) => item.student_id}
+          keyExtractor={item => item.student_id}
           numColumns={2}
           columnWrapperStyle={styles.row}
           contentContainerStyle={styles.listContent}
@@ -337,20 +370,20 @@ const Students = () => {
         />
       )}
     </SafeAreaView>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F5F5F5',
-    paddingTop: 10
+    paddingTop: 10,
   },
   header: {
-    flexDirection: "row",
+    flexDirection: 'row',
     width: '100%',
-    justifyContent: "space-between",
-    alignItems: "center",
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 20,
     paddingHorizontal: 16,
   },
@@ -358,7 +391,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    color: "#5B4DBC"
+    color: '#5B4DBC',
   },
   backButton: {
     width: 40,
@@ -378,7 +411,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 10,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
@@ -417,7 +450,7 @@ const styles = StyleSheet.create({
     width: (SCREEN_WIDTH - 48) / 2,
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
@@ -473,7 +506,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-})
+});
 
-export default Students
-
+export default Students;
