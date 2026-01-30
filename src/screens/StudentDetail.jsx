@@ -12,13 +12,14 @@ import {useRoute, useNavigation} from '@react-navigation/native';
 import {SharedElement} from 'react-navigation-shared-element';
 import AttendanceChart from '../components/AttendanceChart';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import {getStudentAttendance} from '../api/Signup';
+import {getStudentAttendance, getStudents, getStudentsBy} from '../api/Signup';
 import {DatePickerModal} from 'react-native-paper-dates';
 import {Provider as PaperProvider} from 'react-native-paper';
 import {registerTranslation} from 'react-native-paper-dates';
 import PencilLoader from '../components/UI/PencilLoader';
 import NetInfo from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import PrintPDFButton from '../components/PrintPDFButton';
 
 registerTranslation('en', {
   save: 'Save',
@@ -55,6 +56,27 @@ const StudentDetail = () => {
     endDate: undefined,
   });
   const [loading, setLoading] = useState(true);
+  const [studentInfo, setStudentInfo] = useState(null);
+
+  const getExams = async () => {
+    try {
+      const username = await AsyncStorage.getItem('username');
+      const student_Id = student?.student_id;
+      const response = await getStudentsBy({username, student_Id});
+      if (response?.Records?.length > 0) {
+        const studentData = response.Records[0];
+        setStudentInfo(studentData);
+      } else {
+        console.log('No student data found.');
+      }
+    } catch (error) {
+      console.log('Error in getting classes:', error);
+    }
+  };
+
+  useEffect(() => {
+    getExams();
+  }, []);
 
   const onDismiss = useCallback(() => {
     setVisible(false);
@@ -207,32 +229,14 @@ const StudentDetail = () => {
     }
   }, [dateRange, student.student_id, range]);
 
-  // const renderExamResults = useCallback(() => {
-  //   if (!student.exams_result || student.exams_result.length === 0) {
-  //     return <Text style={styles.noExams}>No exam results available</Text>;
-  //   }
-  //   return student.exams_result.map((exam, index) => (
-  //     <View key={index} style={styles.examContainer}>
-  //       <Text style={styles.examName}>{exam.main_exam_name}</Text>
-  //       {exam.sub_exams.map((subExam, subIndex) => (
-  //         <View key={subIndex} style={styles.subExamContainer}>
-  //           <Text style={styles.subExamName}>{subExam.sub_exam_name}</Text>
-  //           <Text style={styles.subExamDetails}>
-  //             Date: {subExam.date_added} | Marks: {subExam.marks}
-  //           </Text>
-  //         </View>
-  //       ))}
-  //     </View>
-  //   ));
-  // }, [student.exams_result]);
   const renderExamResults = useCallback(() => {
-    if (!student.exams_result || student.exams_result.length === 0) {
+    if (!studentInfo?.exams_result || studentInfo?.exams_result.length === 0) {
       return <Text style={styles.noExams}>No exam results available</Text>;
     }
 
     const renderedNames = new Set();
 
-    return student.exams_result.map((exam, index) => {
+    return studentInfo?.exams_result.map((exam, index) => {
       const showExamName = !renderedNames.has(exam.main_exam_name);
       if (showExamName) {
         renderedNames.add(exam.main_exam_name);
@@ -254,7 +258,7 @@ const StudentDetail = () => {
         </View>
       );
     });
-  }, [student.exams_result]);
+  }, [studentInfo?.exams_result]);
 
   const renderDateFilters = () => (
     <View style={styles.filterContainer}>
@@ -408,7 +412,10 @@ const StudentDetail = () => {
           </View>
 
           <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Exam Results</Text>
+            <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+              <Text style={styles.sectionTitle}>Exam Results</Text>
+              <PrintPDFButton studentInfo={studentInfo} />
+            </View>
             {renderExamResults()}
           </View>
 

@@ -33,7 +33,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalView: {
-    width: '80%',
+    width: '85%',
     minHeight: Platform.select({
       ios: '25%',
       android: '25%'

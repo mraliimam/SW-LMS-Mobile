@@ -11,7 +11,6 @@ const StudentRow = memo(
     index,
   }) => {
     const studentAttendance = attendance[item.student_id];
-
     return (
       <View style={styles.row}>
         <Text style={[styles.cell, styles.SrCell]}>{index}</Text>

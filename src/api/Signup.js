@@ -29,13 +29,35 @@ export async function getStudents(username) {
       body: JSON.stringify({username}),
     });
     const data = await response.json();
-    // console.log(data)
+    // console.log('response of getStudents----------',data)
     return data;
   } catch (error) {
     console.error('Network or server error:', error.message);
     return {success: false, message: 'Network error, please try again later.'};
   }
 }
+
+export async function getStudentsBy({username, student_Id}) {
+  try {
+    const response = await fetch(`${API_URL}/getStudents`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        username: username,
+        student_id: student_Id,
+      }),
+    });
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Network or server error:', error.message);
+    return {success: false, message: 'Network error, please try again later.'};
+  }
+}
+
 export async function getAllClasses(user) {
   try {
     // console.log('POHOOOOOOOOOOO', user);
@@ -102,6 +124,26 @@ export async function getExamsByClass(data) {
     const response = await axios.post(`${API_URL}/getClassExamRecords`, data);
     return response.data;
   } catch (error) {
+    console.error('Error in getExamsByClass:', error.response?.status, error.message);
+    // Return empty structure instead of undefined
+    if (error.response?.status === 404) {
+      return {Class_Exam_Results: {students: []}};
+    }
+    return {Class_Exam_Results: {students: []}, error: error.message};
+  }
+}
+
+export async function getClassExamRecords(data) {
+  const payload = {
+    username: data,
+  };
+  try {
+    const response = await axios.post(
+      `${API_URL}/getClassExamRecords`,
+      payload,
+    );
+    return response.data;
+  } catch (error) {
     console.error(error.message); // Just show the error message
   }
 }
@@ -110,7 +152,12 @@ export async function getExamsObject(data) {
     const response = await axios.post(`${API_URL}/getExams`, data);
     return response.data;
   } catch (error) {
-    console.error(error.message); // Just show the error message
+    console.error('Error in getExamsObject:', error.response?.status, error.message);
+    // Return empty structure instead of undefined
+    if (error.response?.status === 404) {
+      return {Exams: null, error: 'Exam not found'};
+    }
+    return {Exams: null, error: error.message};
   }
 }
 

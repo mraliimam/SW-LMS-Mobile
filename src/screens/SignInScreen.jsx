@@ -214,16 +214,17 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
+    marginVertical:30
   },
   brandText: {
     color: '#FF4B75',
     fontSize: 24,
     fontWeight: '600',
-    marginTop: 12,
   },
   titleContainer: {
     justifyContent: 'center',
     alignItems: 'center',
+    marginVertical:15
   },
   title: {
     fontSize: 40,

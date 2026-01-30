@@ -1,356 +1,723 @@
-import { useState, useEffect, useCallback } from "react"
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Dimensions, Modal, Image } from "react-native"
-import AsyncStorage from "@react-native-async-storage/async-storage"
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
-import { getAttendance } from "../api/Signup"
-import PencilLoader from "../components/UI/PencilLoader"
-import CalendarPicker from "react-native-calendar-picker"
-import { format } from "date-fns"
-import { useNavigation } from "@react-navigation/native"
-import CustomDropdown from "../components/CustomDropdown"
-import NetInfo from "@react-native-community/netinfo"
+import {useMemo, useState, useEffect, useCallback, useRef} from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  StatusBar,
+  FlatList,
+  Platform,
+  TouchableOpacity,
+  Image,
+  ActivityIndicator,
+  Alert,
+  Modal,
+} from 'react-native';
+import {useNavigation} from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {Button} from 'react-native-paper';
+import {getStudents, getAttendance} from '../api/Signup';
+import {Popup} from '../components/UI/Popup';
+import PencilLoader from '../components/UI/PencilLoader';
+import StudentRow from './StudentRow';
+import CustomDropdown from '../components/CustomDropdown';
+import NetInfo from '@react-native-community/netinfo';
+import AttendanceManager from '../services/AttendanceManager';
+import AttendenceRow from './AttendenceRow';
+import CalendarPicker from 'react-native-calendar-picker';
+import {format} from 'date-fns';
+import {hp, wp} from '../components/UI/responsive';
 
-const { width } = Dimensions.get("window")
-const ATTENDANCE_VIEW_CACHE_KEY = "ATTENDANCE_VIEW_"
-const CACHE_EXPIRY = 24 * 60 * 60 * 1000 // 24 hours
+const OFFLINE_ATTENDANCE_KEY = 'OFFLINE_ATTENDANCE_';
 
-export default function ViewAttendance() {
-  const [selectedDate, setSelectedDate] = useState(null)
-  const [attendanceData, setAttendanceData] = useState([])
-  const [username, setUsername] = useState("")
-  const [isLoading, setIsLoading] = useState(true)
-  const [showCalendar, setShowCalendar] = useState(false)
-  const [selectedClass, setSelectedClass] = useState(null)
-  const navigation = useNavigation()
-  const insets = useSafeAreaInsets()
+const ViewAttendance = ({navigation}) => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [selectedClass, setSelectedClass] = useState('');
+  const [students, setStudents] = useState([]);
+  const [attendance, setAttendance] = useState({});
+  console.log(attendance, '-=-=-=-=-=--');
+
+  const [username, setUsername] = useState('');
+  const [popupVisible, setPopupVisible] = useState(false);
+  const [popupMessage, setPopupMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [classes, setClasses] = useState([]);
+  const [attendanceTaken, setAttendanceTaken] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const statuses = ['P', 'A', 'X', 'L/E'];
+  const [teachersData, setTeachersData] = useState([]);
+  const [isOffline, setIsOffline] = useState(false);
+  const [updateedAttendence, setUpdateedAttendence] = useState(false);
+  const isFirstLoad = useRef(true);
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [showCalendar, setShowCalendar] = useState(false);
 
   useEffect(() => {
-    fetchUsername()
-  }, [])
+    if (isFirstLoad.current && selectedClass && username) {
+      fetchStudents();
+      fetchAttendanceForClass(selectedClass, username);
+      isFirstLoad.current = false;
+    }
+  }, [selectedClass, username]);
 
-  const fetchUsername = async () => {
+  useEffect(() => {
+    fetchAttendanceForClass(selectedClass, username);
+  }, [selectedClass, username]);
+
+  const showPopup = useCallback(message => {
+    setPopupMessage(message);
+    setPopupVisible(true);
+  }, []);
+
+  // Memoized values for performance
+  const filteredStudents = useMemo(
+    () => students.filter(student => student.current_class === selectedClass),
+    [selectedClass, students],
+  );
+  // console.log(filteredStudents, '================');
+
+  const sortedAttendance = useMemo(
+    () => filteredStudents?.sort((a, b) => a.student_id - b.student_id) || [],
+    [filteredStudents],
+  );
+  // console.log(sortedAttendance,'sortedattendence');
+
+  const allAttendanceMarked = useMemo(
+    () => filteredStudents.every(student => attendance[student.student_id]),
+    [filteredStudents, attendance],
+  );
+
+  const classDropdownData = useMemo(
+    () =>
+      classes.map(className => {
+        const classData = teachersData.find(c => c.class_name === className);
+        return {
+          label: className,
+          value: className,
+          teacher: classData ? classData.teacher_name : '',
+        };
+      }),
+    [classes, teachersData],
+  );
+
+  // Navigation prevention for unsaved changes
+  useEffect(() => {
+    const beforeRemove = navigation.addListener('beforeRemove', e => {
+      if (!attendanceTaken && Object.keys(attendance).length > 0) {
+        e.preventDefault();
+        showPopup('You have unsaved attendance. Submit before leaving.');
+      }
+    });
+    return () => beforeRemove();
+  }, [navigation, attendance, attendanceTaken]);
+
+  // Initial data loading
+  useEffect(() => {
+    const loadData = async () => {
+      const storedUsername = await AsyncStorage.getItem('username');
+      setUsername(storedUsername);
+      fetchStudents();
+    };
+    loadData();
+
+    // Sync status listener
+    const checkSyncStatus = async () => {
+      setIsSyncing(!(await AttendanceManager.getSyncStatus()));
+    };
+    const state = NetInfo.fetch();
+    const offline = !state.isConnected;
+
+    // if (offline) {
+    //   AttendanceManager.stopSync()
+    // } else {
+    //   AttendanceManager.startSync()
+    //   checkSyncStatus()
+    // }
+    checkSyncStatus();
+  }, []);
+
+  // Network status listener
+  useEffect(() => {
+    const unsubscribeNetInfo = NetInfo.addEventListener(state => {
+      //   const stateee = NetInfo.fetch()
+      // const offline = !stateee.isConnected
+      const offline = !state.isConnected;
+      setIsOffline(offline);
+      const checkSyncStatus = async () => {
+        setIsSyncing(!(await AttendanceManager.getSyncStatus()));
+      };
+      if (offline) {
+        AttendanceManager.stopSync();
+      } else {
+        AttendanceManager.startSync();
+        checkSyncStatus();
+      }
+    });
+
+    AttendanceManager.startSync();
+
+    return () => {
+      unsubscribeNetInfo();
+      AttendanceManager.stopSync();
+    };
+  }, []);
+
+  const fetchStudents = useCallback(async () => {
+    setIsLoading(true);
     try {
-      const storedUsername = await AsyncStorage.getItem("username")
-      setUsername(storedUsername)
-      if (storedUsername) {
-        const today = new Date()
-        setSelectedDate(today)
-        fetchAttendance(storedUsername, format(today, "yyyy-MM-dd"))
+      const storedUsername = await AsyncStorage.getItem('username');
+      setUsername(storedUsername);
+
+      // Try cached data first
+      const [cachedStudents, cachedTeachers] = await Promise.all([
+        AsyncStorage.getItem('CACHED_STUDENTS'),
+        AsyncStorage.getItem('CACHED_TEACHERS'),
+      ]);
+
+      if (cachedStudents && cachedTeachers) {
+        const {data: studentData, timestamp: studentTimestamp} =
+          JSON.parse(cachedStudents);
+        const {data: teacherData} = JSON.parse(cachedTeachers);
+
+        if (Date.now() - studentTimestamp < 24 * 60 * 60 * 1000) {
+          setStudents(studentData);
+          setTeachersData(teacherData);
+          updateClasses(studentData);
+        }
+      }
+
+      // Fetch fresh data if online
+      const netInfo = await NetInfo.fetch();
+      if (netInfo.isConnected) {
+        const [studentsResponse, attendanceResponse] = await Promise.all([
+          getStudents(storedUsername),
+          getAttendance({
+            username: storedUsername,
+            dateFor: new Date().toISOString().split('T')[0],
+          }),
+        ]);
+
+        if (studentsResponse?.Records) {
+          setStudents(studentsResponse.Records);
+          updateClasses(studentsResponse.Records);
+          await AsyncStorage.setItem(
+            'CACHED_STUDENTS',
+            JSON.stringify({
+              data: studentsResponse.Records,
+              timestamp: Date.now(),
+            }),
+          );
+        }
+
+        if (attendanceResponse?.Classes) {
+          setTeachersData(attendanceResponse.Classes);
+          await AsyncStorage.setItem(
+            'CACHED_TEACHERS',
+            JSON.stringify({
+              data: attendanceResponse.Classes,
+              timestamp: Date.now(),
+            }),
+          );
+        }
       }
     } catch (error) {
-      console.error("Error fetching username:", error)
+      console.error('Error fetching data:', error);
+      const netInfo = await NetInfo.fetch();
+      setError(
+        netInfo.isConnected
+          ? 'Failed to fetch data. Please try again.'
+          : 'No internet connection. Using cached data.',
+      );
+    } finally {
+      setIsLoading(false);
     }
-  }
+  }, []);
 
-  const fetchAttendance = useCallback(
-    async (user, date) => {
-      setIsLoading(true)
-      try {
-        const netInfo = await NetInfo.fetch()
-        let attendanceResult
-        const cacheKey = `${ATTENDANCE_VIEW_CACHE_KEY}${user}_${date}`
+  const updateClasses = studentData => {
+    const uniqueClasses = [
+      ...new Set(studentData.map(student => student.current_class)),
+    ];
+    setClasses(uniqueClasses);
+    if (!selectedClass && uniqueClasses.length > 0) {
+      setSelectedClass(uniqueClasses[0]);
+    }
+  };
 
-        if (netInfo.isConnected) {
-          // If online, fetch from API
-          const response = await getAttendance({ username: user, dateFor: date })
-          if (response && response.Classes) {
-            attendanceResult = response.Classes
-            // Cache the attendance data
+  useEffect(() => {
+    if (selectedClass && username) {
+      const today = new Date();
+      const formattedDate = format(today, 'yyyy-MM-dd');
+      setSelectedDate(formattedDate); // sets selectedDate state
+      fetchAttendanceForClass(selectedClass, username, formattedDate);
+    }
+  }, [selectedClass, username]); // ✅ only run when these are available
+
+  const handleDateChange = date => {
+    const formattedDate = format(date, 'yyyy-MM-dd');
+
+    // ✅ Skip fetch if selected date is same
+    if (formattedDate === selectedDate) {
+      setShowCalendar(false);
+      return;
+    }
+
+    setSelectedDate(formattedDate);
+    fetchAttendanceForClass(selectedClass, username, formattedDate);
+    setShowCalendar(false);
+  };
+
+  const fetchAttendanceForClass = async (
+    selectedClass,
+    username,
+    selectedDate,
+  ) => {
+    try {
+      setIsLoading(true); // ✅ Start loading
+      console.log('📅 Fetching attendance for:', {
+        selectedClass,
+        username,
+        selectedDate,
+      });
+
+      const offlineKey = `${OFFLINE_ATTENDANCE_KEY}${selectedClass}_${selectedDate}`;
+      const cached = await AsyncStorage.getItem(offlineKey);
+
+      if (cached) {
+        const parsedData = JSON.parse(cached);
+        console.log('📦 Cached attendance data:', parsedData);
+
+        const attendanceList =
+          parsedData?.body?.attendance ||
+          parsedData?.attendance ||
+          parsedData?.attendence;
+
+        const attendanceData = Array.isArray(attendanceList)
+          ? attendanceList.reduce((acc, item) => {
+              acc[item.student_id] = item.status;
+              return acc;
+            }, {})
+          : {};
+
+        setAttendance(attendanceData);
+        setAttendanceTaken(true);
+        if (!parsedData.isOnlineData) {
+          console.log('✅ Used cached data. Skipping online fetch.');
+          return;
+        }
+      }
+
+      const netInfo = await NetInfo.fetch();
+      if (netInfo.isConnected) {
+        const response = await getAttendance({
+          username: username,
+          dateFor: selectedDate,
+        });
+
+        console.log('🌐 Online attendance response:', response);
+
+        if (response?.Classes) {
+          const classData = response.Classes.find(
+            c => c.class_name === selectedClass,
+          );
+          if (classData?.attendance?.length > 0) {
+            const attendanceData = classData.attendance.reduce((acc, item) => {
+              acc[item.student_id] = item.status;
+              return acc;
+            }, {});
+
+            setAttendance(attendanceData);
+            setAttendanceTaken(true);
+
             await AsyncStorage.setItem(
-              cacheKey,
+              offlineKey,
               JSON.stringify({
-                data: attendanceResult,
+                attendance: classData.attendance,
                 timestamp: Date.now(),
+                isOnlineData: true,
               }),
-            )
+            );
+          } else {
+            console.log('⚠️ No attendance data found in classData.');
           }
         } else {
-          // If offline, try to get cached data
-          const cachedData = await AsyncStorage.getItem(cacheKey)
-          if (cachedData) {
-            const { data, timestamp } = JSON.parse(cachedData)
-            if (Date.now() - timestamp < CACHE_EXPIRY) {
-              attendanceResult = data
-            }
-          }
+          console.log('❌ No Classes data in response.');
         }
+      } else {
+        console.log('📴 Device is offline. Skipping online fetch.');
+      }
+    } catch (error) {
+      console.error('❌ Error fetching attendance:', error);
+    } finally {
+      setIsLoading(false); // ✅ Stop loading
+    }
+  };
 
-        if (attendanceResult) {
-          setAttendanceData(attendanceResult)
-          if (attendanceResult.length > 0 && !selectedClass) {
-            setSelectedClass(attendanceResult[0].class_name.toString())
-          }
-        } else {
-          setAttendanceData([])
-          if (!netInfo.isConnected) {
-            // Show offline message or handle empty state
-            console.log("No cached data available while offline")
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching attendance:", error)
-        // Try to get cached data as fallback
-        try {
-          const cacheKey = `${ATTENDANCE_VIEW_CACHE_KEY}${user}_${date}`
-          const cachedData = await AsyncStorage.getItem(cacheKey)
-          if (cachedData) {
-            const { data } = JSON.parse(cachedData)
-            setAttendanceData(data)
-            if (data.length > 0 && !selectedClass) {
-              setSelectedClass(data[0].class_name.toString())
-            }
-          }
-        } catch (cacheError) {
-          console.error("Error reading cached attendance data:", cacheError)
-          setAttendanceData([])
-        }
-      } finally {
-        setIsLoading(false)
+  const handleAttendanceChange = useCallback(
+    (studentId, status) => {
+      setAttendance(prev => ({
+        ...prev,
+        [studentId]: status === 'L/E' ? 'E' : status,
+      }));
+
+      if (attendanceTaken === true) {
+        setUpdateedAttendence(true); // ✅ mark that a change happened
       }
     },
-    [selectedClass],
-  )
+    [attendanceTaken],
+  );
 
-  // Add network status effect
-  useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener((state) => {
-      if (state.isConnected && username && selectedDate) {
-        // When connection is restored, refresh the data
-        fetchAttendance(username, format(selectedDate, "yyyy-MM-dd"))
-      }
-    })
+  const handleClassChange = useCallback(
+    async newClass => {
+      setSelectedClass(newClass);
+      setAttendance({});
+      setAttendanceTaken(false);
+      await fetchAttendanceForClass(newClass, username);
+    },
+    [username],
+  );
 
-    return () => unsubscribe()
-  }, [username, selectedDate, fetchAttendance])
+  const renderItem = useCallback(
+    ({item, index}) => (
+      <AttendenceRow
+        index={index + 1}
+        item={item}
+        attendance={attendance}
+        statuses={statuses}
+        onAttendanceChange={handleAttendanceChange}
+        attendanceTaken={attendanceTaken}
+        key={`${item.student_id}_${attendance[item.student_id]}`}
+      />
+    ),
+    [attendance, handleAttendanceChange, attendanceTaken],
+  );
 
-  const handleDateChange = (date) => {
-    setSelectedDate(date)
-    fetchAttendance(username, format(date, "yyyy-MM-dd"))
-    setShowCalendar(false)
-  }
+  const keyExtractor = useCallback(item => item.student_id.toString(), []);
 
-  const renderAttendanceItem = ({ item, index }) => (
-    <View style={styles.row}>
-      <Text style={[styles.cell, styles.indexCell]}>{index + 1}</Text>
-      <Text style={[styles.cell, styles.nameCell]}>
-        {item.student_name}
-      </Text>
-      <Text style={[styles.cell, styles.idCell]}>{item.student_id}</Text>
-      <View style={[styles.statusCell, { backgroundColor: getStatusColor(item.status) }]}>
-        <Text style={styles.statusText}>{item.status}</Text>
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>{error}</Text>
+        <Button
+          mode="contained"
+          onPress={fetchStudents}
+          style={styles.retryButton}>
+          Retry
+        </Button>
       </View>
-    </View>
-  )
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "P":
-        return "#4CAF50"
-      case "A":
-        return "#F44336"
-      case "H":
-        return "#FFC107"
-      case "L":
-        return "#FF9800"
-      case "E":
-        return "#2196F3"
-      default:
-        return "#9E9E9E"
-    }
+    );
   }
-
-  const selectedClassData = attendanceData.find((classData) => classData.class_name.toString() === selectedClass)
-  const sortedAttendance = selectedClassData?.attendance?.sort((a, b) => a.sr_no - b.sr_no) || []
 
   return (
-   <View style={{...styles.container, paddingTop:insets.top}}>
-     <View style={styles.container1}>
-      <View style={[styles.header]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Image source={require("../assets/arrow.png")} style={styles.icon} />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.dateButton} onPress={() => setShowCalendar(true)}>
-          <Image source={require("../assets/calendar.png")} style={[styles.icon, styles.marginRight]} />
-          <Text style={styles.dateButtonText}>
-            {selectedDate ? format(selectedDate, "MMMM d, yyyy") : "Select Date"}
-          </Text>
-        </TouchableOpacity>
-      </View>
+    <>
+      <StatusBar barStyle="light-content" backgroundColor="#5B4DBC" />
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.container}>
+          {isOffline && (
+            <View style={styles.offlineBanner}>
+              <Text style={styles.offlineText}>
+                You are offline. Attendance will be saved locally.
+              </Text>
+            </View>
+          )}
 
-      <View style={styles.pickerContainer}>
-        <CustomDropdown
-          data={attendanceData.map((classData) => ({
-            label: classData.class_name,
-            value: classData.class_name.toString(),
-            teacher: classData.teacher_name,
-          }))}
-          selectedValue={selectedClass}
-          onValueChange={(itemValue) => setSelectedClass(itemValue)}
-          placeholder="Select a class"
-        />
-      </View>
+          {!isOffline && isSyncing && (
+            <View style={styles.syncBanner}>
+              <ActivityIndicator size="small" color="#5B4DBC" />
+              <Text style={styles.syncText}>Syncing pending attendance...</Text>
+            </View>
+          )}
 
-      <Modal visible={showCalendar} transparent animationType="slide">
-        <View style={styles.modalContainer}>
-          <View style={styles.calendarContainer}>
-            <CalendarPicker
-              onDateChange={handleDateChange}
-              selectedDayColor="#5B4DBC"
-              selectedDayTextColor="#FFFFFF"
-              todayBackgroundColor="#E6E6FA"
-              todayTextStyle={{ color: "#5B4DBC" }}
-              textStyle={{ color: "#333" }}
-              previousTitle="Previous"
-              nextTitle="Next"
-              previousTitleStyle={{ color: "#5B4DBC" }}
-              nextTitleStyle={{ color: "#5B4DBC" }}
-              scaleFactor={375}
-            />
-            <TouchableOpacity style={styles.closeButton} onPress={() => setShowCalendar(false)}>
-              <Text style={styles.closeButtonText}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+          <Modal visible={showCalendar} transparent animationType="slide">
+            <View style={styles.modalContainer}>
+              <View style={styles.calendarContainer}>
+                <CalendarPicker
+                  onDateChange={handleDateChange}
+                  selectedDayColor="#5B4DBC"
+                  selectedDayTextColor="#FFFFFF"
+                  todayBackgroundColor="#E6E6FA"
+                  todayTextStyle={{color: '#5B4DBC'}}
+                  textStyle={{color: '#333'}}
+                  previousTitle="Previous"
+                  nextTitle="Next"
+                  previousTitleStyle={{color: '#5B4DBC'}}
+                  nextTitleStyle={{color: '#5B4DBC'}}
+                  scaleFactor={375}
+                />
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  onPress={() => setShowCalendar(false)}>
+                  <Text style={styles.closeButtonText}>Close</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
 
-      {isLoading ? (
-        <View style={styles.loaderContainer}>
-          <PencilLoader size={100} color="#5B4DBC" />
-        </View>
-      ) : (
-        <View style={styles.attendanceContainer}>
-          {selectedClassData ? (
+          {isLoading ? (
+            <View style={styles.loaderContainer}>
+              <PencilLoader size={100} color="#5B4DBC" />
+            </View>
+          ) : (
             <>
-              <FlatList
-                data={sortedAttendance}
-                renderItem={renderAttendanceItem}
-                keyExtractor={(item) => item.id.toString()}
-                ListHeaderComponent={() => (
-                  <View style={styles.headerRow}>
-                    <Text style={[styles.headerCell, styles.indexCell]}>No.</Text>
-                    <Text style={[styles.headerCell, styles.nameCell]}>Name</Text>
-                    <Text style={[styles.headerCell, styles.idCell]}>ID</Text>
-                    <Text style={[styles.headerCell, styles.statusHeaderCell]}>Status</Text>
+              <View style={styles.selectContainer}>
+                <View style={styles.headerRow1}>
+                  <TouchableOpacity
+                    onPress={() => navigation.goBack()}
+                    style={styles.backButton}>
+                    <Image
+                      source={require('../assets/arrow.png')}
+                      style={{width: 24, height: 24, tintColor: 'white'}}
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.dateButton}
+                    onPress={() => setShowCalendar(true)}>
+                    <Image
+                      source={require('../assets/calendar.png')}
+                      style={[styles.icon, styles.marginRight]}
+                    />
+                    <Text style={styles.dateButtonText}>
+                      {selectedDate
+                        ? format(new Date(selectedDate), 'MMMM d, yyyy') // ✅ convert back to Date
+                        : 'Select Date'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.pickerContainer}>
+                  <CustomDropdown
+                    data={classDropdownData}
+                    selectedValue={selectedClass}
+                    onValueChange={handleClassChange}
+                    placeholder="Select a class"
+                  />
+                </View>
+              </View>
+
+              <View style={styles.tableContainer}>
+                <View style={styles.headerRow}>
+                  <Text style={[styles.headerCell, {width: 50}]}>Sr</Text>
+                  <Text
+                    style={[
+                      styles.headerCell,
+                      {width: wp(30), textAlign: 'left'},
+                    ]}>
+                    Name
+                  </Text>
+                  <Text
+                    style={[styles.headerCell, {width: wp(13), right: wp(5)}]}>
+                    ID
+                  </Text>
+                  <Text
+                    style={[styles.headerCell, {width: wp(10), right: wp(5)}]}>
+                    status
+                  </Text>
+                </View>
+                {Object.keys(attendance).length > 0 ? (
+                  <FlatList
+                    data={sortedAttendance}
+                    renderItem={renderItem}
+                    keyExtractor={keyExtractor}
+                    initialNumToRender={10}
+                    maxToRenderPerBatch={10}
+                    updateCellsBatchingPeriod={50}
+                    windowSize={21}
+                    removeClippedSubviews={true}
+                    refreshing={isLoading}
+                    onRefresh={() => {
+                      fetchStudents();
+                      fetchAttendanceForClass(
+                        selectedClass,
+                        username,
+                        selectedDate,
+                      );
+                    }}
+                    getItemLayout={(data, index) => ({
+                      length: 50,
+                      offset: 50 * index,
+                      index,
+                    })}
+                  />
+                ) : (
+                  <View style={{padding: 20, alignItems: 'center'}}>
+                    <Text style={{color: '#999', fontSize: 16}}>
+                      No attendance records found for this class.
+                    </Text>
                   </View>
                 )}
-                ListEmptyComponent={
-                  <Text style={styles.noDataText}>
-                    {!selectedClassData.attendance.length
-                      ? "No attendance data for this class."
-                      : "You are currently offline. No cached data available."}
-                  </Text>
-                }
-                contentContainerStyle={styles.flatListContent}
-              />
+              </View>
             </>
-          ) : (
-            <Text style={styles.noDataText}>No class selected or no data available.</Text>
           )}
         </View>
-      )}
-    </View>
-   </View>
-  )
-}
+      </SafeAreaView>
+    </>
+  );
+};
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#5B4DBC"},
-  container1: { flex: 1, backgroundColor: "white", paddingHorizontal: 8 },
+  safeArea: {
+    flex: 1,
+    backgroundColor: 'white',
+  },
+  container: {
+    flex: 1,
+    backgroundColor: 'white',
+    padding: Platform.select({
+      ios: 16,
+      android: 16,
+    }),
+  },
+  selectContainer: {
+    marginBottom: 24,
+  },
+  label: {
+    marginRight: 15,
+    fontSize: 24,
+    fontWeight: '500',
+    color: 'black',
+    textAlign: 'center',
+    marginBottom: 8,
+    flex: 1,
+  },
+  pickerContainer: {
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    backgroundColor: '#fff',
+    borderRadius: 30,
+  },
   backButton: {
     width: 40,
     height: 40,
-    backgroundColor: "#5B4DBC",
     borderRadius: 100,
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: '#5B4DBC',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  icon: { tintColor: "white", width: 24, height: 24 },
-  marginRight: { marginRight: 10 },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+  tableContainer: {
+    borderRadius: 20,
+    borderColor: '#5B4DBC',
+    backgroundColor: '#fff',
+    marginBottom: 24,
+    flex: 1,
+  },
+  loaderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    borderBottomColor: '#5B4DBC',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    height: hp(6),
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+  headerRow1: {
+    flexDirection: 'row',
+    borderBottomColor: '#5B4DBC',
+    justifyContent: 'space-between',
+    height: hp(6),
+    alignItems: 'center',
   },
   dateButton: {
-    backgroundColor: "#5B4DBC",
-    flexDirection: "row",
+    backgroundColor: '#5B4DBC',
+    flexDirection: 'row',
     paddingHorizontal: 10,
     paddingVertical: 15,
     borderRadius: 100,
-    alignItems: "center",
+    alignItems: 'center',
   },
-  dateButtonText: { color: "white", fontSize: 16, fontWeight: "bold" },
-  pickerContainer: { marginHorizontal: 16, marginVertical: 16 },
-  modalContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0, 0, 0, 0.5)" },
-  calendarContainer: { backgroundColor: "#FFFFFF", borderRadius: 10, padding: 10, width: "100%", maxHeight: "80%" },
-  closeButton: { backgroundColor: "#5B4DBC", padding: 10, borderRadius: 5, alignItems: "center", marginTop: 10 },
-  closeButtonText: { color: "white", fontSize: 16, fontWeight: "bold" },
-  loaderContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
-  attendanceContainer: { flex: 1, marginHorizontal: 16, backgroundColor: "#FFFFFF", borderRadius: 10 },
-  className: { fontSize: 18, fontWeight: "bold", backgroundColor: "#5B4DBC", color: "white", padding: 10 },
-  row: {
-    flexDirection: "row",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E0E0E0",
-    paddingVertical: 12,
-    alignItems: "center",
-    paddingHorizontal: 8,
-  },
-  headerRow: {
-    flexDirection: "row",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E0E0E0",
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderTopStartRadius: 10,
-    borderTopEndRadius: 10,
-    alignItems: "center",
-    backgroundColor: "#F5F5F5",
-  },
-  cell: {
+  dateButtonText: {color: 'white', fontSize: 16, fontWeight: 'bold'},
+  icon: {tintColor: 'white', width: 24, height: 24},
+  marginRight: {marginRight: 10},
+  pickerContainer: {marginHorizontal: 16, marginVertical: 16},
+  modalContainer: {
     flex: 1,
-    fontSize: 14,
-    color: "#333",
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
+  calendarContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    padding: 10,
+    width: '100%',
+    maxHeight: '80%',
+  },
+  closeButton: {
+    backgroundColor: '#5B4DBC',
+    padding: 10,
+    borderRadius: 5,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  closeButtonText: {color: 'white', fontSize: 16, fontWeight: 'bold'},
   headerCell: {
-    flex: 1,
-    color: "#333",
-    fontWeight: "bold",
-    fontSize: 14,
-  },
-  indexCell: {
-    flex: 0.5,
-    textAlign: "center",
+    textAlign: 'center',
+    fontWeight: 'bold',
+    color: '#333',
   },
   nameCell: {
-    flex: 2,
-    paddingLeft: 4,
+    textAlign: 'center',
   },
   idCell: {
-    flex: 1,
-    textAlign: "center",
+    paddingLeft: 16,
+    textAlign: 'left',
   },
-  statusCell: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 15,
-    paddingVertical: 4,
-    marginHorizontal: 4,
+  submitButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    backgroundColor: '#5B4DBC',
+    marginTop: 16,
   },
-  statusHeaderCell: {
-    flex: 1,
-    textAlign: "center",
+  disabledSubmitButton: {
+    backgroundColor: '#A9A9A9',
+    opacity: 0.7,
   },
-  statusText: {
-    color: "#FFFFFF",
-    fontWeight: "bold",
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  errorText: {
+    fontSize: 16,
+    color: 'red',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  retryButton: {
+    backgroundColor: '#5B4DBC',
+  },
+  offlineBanner: {
+    backgroundColor: '#FFF3CD',
+    padding: 8,
+    marginBottom: 16,
+    borderRadius: 8,
+  },
+  offlineText: {
+    color: '#856404',
+    textAlign: 'center',
     fontSize: 12,
   },
-  flatListContent: {
-    flexGrow: 1,
+  syncBanner: {
+    backgroundColor: '#E3F2FD',
+    padding: 8,
+    marginBottom: 16,
+    borderRadius: 8,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
   },
-  noDataText: { textAlign: "center", marginTop: 20, fontSize: 16, color: "#666" },
-})
+  syncText: {
+    color: '#0D47A1',
+    fontSize: 12,
+  },
+});
 
+export default ViewAttendance;

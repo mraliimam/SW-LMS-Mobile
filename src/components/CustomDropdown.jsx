@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, {useState} from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,14 @@ import {
   StyleSheet,
 } from 'react-native';
 
-const CustomDropdown = ({data, selectedValue, onValueChange, placeholder, dropdownStyle}) => {
+const CustomDropdown = ({
+  data,
+  selectedValue,
+  onValueChange,
+  placeholder,
+  dropdownStyle,
+  fontSize,
+}) => {
   const [modalVisible, setModalVisible] = useState(false);
 
   const handleSelect = item => {
@@ -19,16 +26,19 @@ const CustomDropdown = ({data, selectedValue, onValueChange, placeholder, dropdo
   const selectedItem = data?.find(item => item.value === selectedValue);
 
   return (
-    <View>
+    <View style={{alignItems: 'center', justifyContent: 'center'}}>
       <TouchableOpacity
         style={[styles.dropdownButton, dropdownStyle]} // Apply custom style here
         onPress={() => setModalVisible(true)}>
-        <Text style={styles.dropdownButtonText}>
+        <Text style={[styles.dropdownButtonText, {fontSize}, {textAlign: 'center'}]}>
           {selectedValue ? (
             <>
               {selectedValue}
               {selectedItem?.teacher && (
-                <Text style={styles.teacherText}>{` (${selectedItem.teacher})`}</Text>
+                <Text
+                  style={
+                    styles.teacherText
+                  }>{` (${selectedItem.teacher})`}</Text>
               )}
             </>
           ) : (
@@ -80,7 +90,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#5B4DBC',
     backgroundColor: '#fff',
-    borderRadius: 30,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dropdownButtonText: {
     color: 'black',
